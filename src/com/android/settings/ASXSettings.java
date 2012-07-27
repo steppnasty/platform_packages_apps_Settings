@@ -2,9 +2,12 @@ package com.android.settings;
 
 import android.app.AlertDialog;
 import android.app.Dialog;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.RemoteException;
+import android.os.ServiceManager;
 import android.os.SystemProperties;
 import android.os.UserHandle;
 import android.preference.CheckBoxPreference;
@@ -12,6 +15,7 @@ import android.preference.ListPreference;
 import android.preference.Preference;
 import android.preference.PreferenceScreen;
 import android.provider.Settings;
+import android.view.IWindowManager;
 
 import java.util.HashSet;
 
@@ -24,6 +28,7 @@ public class ASXSettings extends SettingsPreferenceFragment implements
     private static final String KILL_APP_LONGPRESS_BACK = "kill_app_longpress_back";
     private static final String ROOT_ACCESS_KEY = "root_access";
     private static final String ROOT_ACCESS_PROPERTY = "persist.sys.root_access";
+    private static final String KEY_HARDWARE_KEYS = "hardware_keys";
 
     private CheckBoxPreference mAdvancedReboot;
     private CheckBoxPreference mTrackballWake;
@@ -64,6 +69,18 @@ public class ASXSettings extends SettingsPreferenceFragment implements
         if (!android.os.Process.myUserHandle().equals(UserHandle.OWNER)) {
             disableForUser(mAdvancedReboot);
         }
+
+        // Only show the hardware keys config on a device that does not have a navbar
+        IWindowManager windowManager = IWindowManager.Stub.asInterface(
+                ServiceManager.getService(Context.WINDOW_SERVICE));
+        try {
+            if (windowManager.hasNavigationBar()) {
+                getPreferenceScreen().removePreference(findPreference(KEY_HARDWARE_KEYS));
+            }
+        } catch (RemoteException e) {
+            // Do nothing
+        }
+
     }
 
     @Override
