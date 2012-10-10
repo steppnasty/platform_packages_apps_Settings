@@ -55,6 +55,12 @@
             android:defaultValue="false" />
 
         <CheckBoxPreference
+            android:key="trackball_wake_toggle"
+            android:title="@string/trackball_wake_toggle_title"
+            android:summary="@string/trackball_wake_toggle_summary"
+            android:defaultValue="false" />
+
+        <CheckBoxPreference
             android:key="notification_pulse"
             android:title="@string/notification_pulse_title"
             android:persistent="false" />

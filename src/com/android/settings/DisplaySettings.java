@@ -53,11 +53,13 @@ public class DisplaySettings extends SettingsPreferenceFragment implements
     private static final String KEY_FONT_SIZE = "font_size";
     private static final String KEY_NOTIFICATION_PULSE = "notification_pulse";
     private static final String PREF_VOLUME_WAKE = "volume_wake";
+    private static final String TRACKBALL_WAKE_TOGGLE = "trackball_wake_toggle";
 
     private CheckBoxPreference mAccelerometer;
     private ListPreference mFontSizePref;
     private CheckBoxPreference mNotificationPulse;
     private CheckBoxPreference mVolumeWake;
+    private CheckBoxPreference mTrackballWake;
 
     private final Configuration mCurConfig = new Configuration();
     
@@ -109,6 +111,15 @@ public class DisplaySettings extends SettingsPreferenceFragment implements
         if (mVolumeWake != null) {
             mVolumeWake.setChecked(Settings.System.getInt(resolver,
                     Settings.System.VOLUME_WAKE_SCREEN, 0) == 1);
+        }
+
+        mTrackballWake = (CheckBoxPreference) findPreference(
+                TRACKBALL_WAKE_TOGGLE);
+        mTrackballWake.setChecked(Settings.System.getInt(getContentResolver(),
+                Settings.System.TRACKBALL_WAKE_SCREEN, 1) == 1);
+        /* Remove mTrackballWake on devices without trackballs */
+        if (!getResources().getBoolean(R.bool.has_trackball)) {
+            getPreferenceScreen().removePreference(mTrackballWake);
         }
     }
 
@@ -261,7 +272,12 @@ public class DisplaySettings extends SettingsPreferenceFragment implements
             Settings.System.putInt(getContentResolver(), Settings.System.VOLUME_WAKE_SCREEN,
                     mVolumeWake.isChecked() ? 1 : 0);
             return true;
-        }
+        } else if (preference == mTrackballWake) {
+            boolean value = mTrackballWake.isChecked();
+            Settings.System.putInt(getContentResolver(), Settings.System.TRACKBALL_WAKE_SCREEN,
+                    value ? 1 : 0);
+            return true;
+        } 
         return super.onPreferenceTreeClick(preferenceScreen, preference);
     }
 

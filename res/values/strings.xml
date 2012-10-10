@@ -1684,6 +1684,9 @@
     <!-- Strings for Volume wake control -->
     <string name="volume_wake_title">Volume wake</string>
     <string name="volume_wake_summary">Press volume keys to wake device</string>
+    <!-- Strings for Trackball wake -->
+    <string name="trackball_wake_toggle_title">Trackball wake</string>
+    <string name="trackball_wake_toggle_summary">Allow trackball to wake the device</string>
 
     <!-- SIM lock settings title -->
     <string name="sim_lock_settings">SIM card lock settings</string>
