@@ -44,6 +44,7 @@ public class DeviceInfoSettings extends SettingsPreferenceFragment {
 
     private static final String FILENAME_PROC_VERSION = "/proc/version";
     private static final String FILENAME_MSV = "/sys/board_properties/soc/msv";
+    private static final String FILENAME_PROC_MEMINFO = "/proc/meminfo";
 
     private static final String KEY_CONTAINER = "container";
     private static final String KEY_TEAM = "team";
@@ -57,6 +58,8 @@ public class DeviceInfoSettings extends SettingsPreferenceFragment {
     private static final String KEY_DEVICE_MODEL = "device_model";
     private static final String KEY_BASEBAND_VERSION = "baseband_version";
     private static final String KEY_FIRMWARE_VERSION = "firmware_version";
+
+    private static final String KEY_DEVICE_MEMORY = "device_memory";
 
     private static final String KEY_MOD_BUILD_DATE = "mod_build_date";
 
@@ -75,6 +78,14 @@ public class DeviceInfoSettings extends SettingsPreferenceFragment {
         setStringSummary(KEY_BUILD_NUMBER, Build.DISPLAY);
         findPreference(KEY_KERNEL_VERSION).setSummary(getFormattedKernelVersion());
         setValueSummary(KEY_MOD_BUILD_DATE, "ro.build.date");
+
+        String memInfo = getMemInfo();
+
+        if (memInfo != null) {
+            setStringSummary(KEY_DEVICE_MEMORY, memInfo);
+        } else {
+            getPreferenceScreen().removePreference(findPreference(KEY_DEVICE_MEMORY));
+        }
 
         // Remove Safety information preference if PROPERTY_URL_SAFETYLEGAL is not set
         removePreferenceIfPropertyMissing(getPreferenceScreen(), "safetylegal",
@@ -230,5 +241,28 @@ public class DeviceInfoSettings extends SettingsPreferenceFragment {
             // Fail quietly, returning empty string should be sufficient
         }
         return "";
+    }
+
+    private String getMemInfo() {
+        String result = null;
+        BufferedReader reader = null;
+
+        try {
+            /* /proc/meminfo entries follow this format:
+             * MemTotal:         362096 kB
+             * MemFree:           29144 kB
+             * Buffers             5236 kB
+             * Cached:            81652 kB
+             */
+            String firstLine = readLine(FILENAME_PROC_MEMINFO);
+            if (firstLine != null) {
+                String parts[] = firstLine.split("\\s+");
+                if (parts.length == 3) {
+                    result = Long.parseLong(parts[1])/1024 + " MB";
+                }
+            }
+        } catch (IOException e) {}
+
+        return result;
     }
 }

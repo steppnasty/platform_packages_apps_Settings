@@ -98,7 +98,13 @@
                 android:title="@string/kernel_version"
                 android:summary="@string/device_info_default"/>
 
-       <!-- Mod build date -->
+        <!-- Device mem info -->
+        <Preference android:key="device_memory"
+                style="?android:preferenceInformationStyle"
+                android:title="@string/mem_info"
+                android:summary="@string/device_info_default"/>
+
+        <!-- Mod build date -->
         <Preference android:key="mod_build_date"
                 style="?android:preferenceInformationStyle"
                 android:title="@string/mod_build_date"
