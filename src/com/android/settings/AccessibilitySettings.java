@@ -23,6 +23,7 @@ import android.app.ActivityManagerNative;
 import android.app.AlertDialog;
 import android.app.Dialog;
 import android.content.ComponentName;
+import android.content.ContentResolver;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
@@ -30,6 +31,7 @@ import android.content.SharedPreferences;
 import android.content.pm.ResolveInfo;
 import android.content.pm.ServiceInfo;
 import android.content.res.Configuration;
+import android.database.ContentObserver;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
@@ -63,6 +65,7 @@ import android.widget.Switch;
 import android.widget.TextView;
 
 import com.android.internal.content.PackageMonitor;
+import com.android.internal.view.RotationPolicy;
 import com.android.settings.AccessibilitySettings.ToggleSwitch.OnBeforeCheckedChangeListener;
 
 import java.util.HashMap;
@@ -108,6 +111,8 @@ public class AccessibilitySettings extends SettingsPreferenceFragment implements
         "toggle_power_button_ends_call_preference";
     private static final String TOGGLE_AUTO_ROTATE_SCREEN_PREFERENCE =
         "toggle_auto_rotate_screen_preference";
+    private static final String TOGGLE_LOCK_SCREEN_ROTATION_PREFERENCE =
+            "toggle_lock_screen_rotation_preference";
     private static final String TOGGLE_SPEAK_PASSWORD_PREFERENCE =
         "toggle_speak_password_preference";
     private static final String TOGGLE_TOUCH_EXPLORATION_PREFERENCE =
@@ -154,6 +159,23 @@ public class AccessibilitySettings extends SettingsPreferenceFragment implements
         }
     };
 
+    private final SettingsContentObserver mSettingsContentObserver =
+            new SettingsContentObserver(mHandler) {
+        @Override
+        public void onChange(boolean selfChange, Uri uri) {
+            loadInstalledServices();
+            updateServicesPreferences();
+        }
+    };
+
+    private final RotationPolicy.RotationPolicyListener mRotationPolicyListener =
+            new RotationPolicy.RotationPolicyListener() {
+                @Override
+                public void onChange() {
+                    updateLockScreenRotationCheckbox();
+                }
+            };
+
     // Preference controls.
     private PreferenceCategory mServicesCategory;
     private PreferenceCategory mSystemsCategory;
@@ -161,6 +183,7 @@ public class AccessibilitySettings extends SettingsPreferenceFragment implements
     private CheckBoxPreference mToggleLargeTextPreference;
     private CheckBoxPreference mTogglePowerButtonEndsCallPreference;
     private CheckBoxPreference mToggleAutoRotateScreenPreference;
+    private CheckBoxPreference mToggleLockScreenRotationPreference;
     private CheckBoxPreference mToggleSpeakPasswordPreference;
     private Preference mToggleTouchExplorationPreference;
     private ListPreference mSelectLongPressTimeoutPreference;
@@ -184,7 +207,10 @@ public class AccessibilitySettings extends SettingsPreferenceFragment implements
         if (mServicesCategory.getPreference(0) == mNoServicesMessagePreference) {
             offerInstallAccessibilitySerivceOnce();
         }
-        mSettingsPackageMonitor.register(getActivity(), false);
+        mSettingsPackageMonitor.register(getActivity(), getActivity().getMainLooper(), false);
+        mSettingsContentObserver.register(getContentResolver());
+        RotationPolicy.registerRotationPolicyListener(getActivity(),
+                mRotationPolicyListener);
     }
 
     @Override
@@ -215,6 +241,9 @@ public class AccessibilitySettings extends SettingsPreferenceFragment implements
             return true;
         } else if (mToggleAutoRotateScreenPreference == preference) {
             handleToggleAutoRotateScreenPreferenceClick();
+            return true;
+        } else if (mToggleLockScreenRotationPreference == preference) {
+            handleLockScreenRotationPreferenceClick();
             return true;
         } else if (mToggleSpeakPasswordPreference == preference) {
             handleToggleSpeakPasswordPreferenceClick();
@@ -253,6 +282,11 @@ public class AccessibilitySettings extends SettingsPreferenceFragment implements
         }
     }
 
+    private void handleLockScreenRotationPreferenceClick() {
+        RotationPolicy.setRotationLockForAccessibility(getActivity(),
+                !mToggleLockScreenRotationPreference.isChecked());
+    }
+
     private void handleToggleSpeakPasswordPreferenceClick() {
         Settings.Secure.putInt(getContentResolver(),
                 Settings.Secure.ACCESSIBILITY_SPEAK_PASSWORD,
@@ -278,6 +312,10 @@ public class AccessibilitySettings extends SettingsPreferenceFragment implements
         // Auto-rotate screen
         mToggleAutoRotateScreenPreference =
             (CheckBoxPreference) findPreference(TOGGLE_AUTO_ROTATE_SCREEN_PREFERENCE);
+
+        // Lock screen rotation.
+        mToggleLockScreenRotationPreference =
+                (CheckBoxPreference) findPreference(TOGGLE_LOCK_SCREEN_ROTATION_PREFERENCE);
 
         // Speak passwords.
         mToggleSpeakPasswordPreference =
@@ -477,6 +515,14 @@ public class AccessibilitySettings extends SettingsPreferenceFragment implements
         final boolean  scriptInjectionAllowed = (Settings.Secure.getInt(getContentResolver(),
                 Settings.Secure.ACCESSIBILITY_SCRIPT_INJECTION, 0) == 1);
         mToggleScriptInjectionPreference.setInjectionAllowed(scriptInjectionAllowed);
+    }
+
+    private void updateLockScreenRotationCheckbox() {
+        Context context = getActivity();
+        if (context != null) {
+            mToggleLockScreenRotationPreference.setChecked(
+                    !RotationPolicy.isRotationLocked(context));
+        }
     }
 
     private void offerInstallAccessibilitySerivceOnce() {
@@ -919,5 +965,26 @@ public class AccessibilitySettings extends SettingsPreferenceFragment implements
             mDisableWarningMessage = arguments.getString(
                     AccessibilitySettings.EXTRA_DISABLE_WARNING_MESSAGE);
         }
+    }
+
+    private static abstract class SettingsContentObserver extends ContentObserver {
+
+        public SettingsContentObserver(Handler handler) {
+            super(handler);
+        }
+
+        public void register(ContentResolver contentResolver) {
+            contentResolver.registerContentObserver(Settings.Secure.getUriFor(
+                    Settings.Secure.ACCESSIBILITY_ENABLED), false, this);
+            contentResolver.registerContentObserver(Settings.Secure.getUriFor(
+                    Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES), false, this);
+        }
+
+        public void unregister(ContentResolver contentResolver) {
+            contentResolver.unregisterContentObserver(this);
+        }
+
+        @Override
+        public abstract void onChange(boolean selfChange, Uri uri);
     }
 }

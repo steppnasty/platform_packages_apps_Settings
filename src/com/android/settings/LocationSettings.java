@@ -142,7 +142,7 @@ public class LocationSettings extends SettingsPreferenceFragment
                 mAssistedGps.setEnabled(enabled);
             }
         } else if (preference == mAssistedGps) {
-            Settings.Secure.putInt(getContentResolver(), Settings.Secure.ASSISTED_GPS_ENABLED,
+            Settings.Global.putInt(getContentResolver(), Settings.Global.ASSISTED_GPS_ENABLED,
                     mAssistedGps.isChecked() ? 1 : 0);
         } else {
             // If we didn't handle it, let preferences handle it.
@@ -163,8 +163,8 @@ public class LocationSettings extends SettingsPreferenceFragment
                 res, LocationManager.NETWORK_PROVIDER));
         mGps.setChecked(gpsEnabled);
         if (mAssistedGps != null) {
-            mAssistedGps.setChecked(Settings.Secure.getInt(res,
-                    Settings.Secure.ASSISTED_GPS_ENABLED, 2) == 1);
+            mAssistedGps.setChecked(Settings.Global.getInt(res,
+                    Settings.Global.ASSISTED_GPS_ENABLED, 2) == 1);
             mAssistedGps.setEnabled(gpsEnabled);
         }
     }

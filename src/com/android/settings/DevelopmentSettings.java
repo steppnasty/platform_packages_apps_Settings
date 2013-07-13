@@ -175,8 +175,8 @@ public class DevelopmentSettings extends PreferenceFragment
         super.onResume();
 
         final ContentResolver cr = getActivity().getContentResolver();
-        mEnableAdb.setChecked(Settings.Secure.getInt(cr,
-                Settings.Secure.ADB_ENABLED, 0) != 0);
+        mEnableAdb.setChecked(Settings.Global.getInt(cr,
+                Settings.Global.ADB_ENABLED, 0) != 0);
         mAdbOverNetwork.setChecked(Settings.Secure.getInt(cr,
                 Settings.Secure.ADB_PORT, 0) > 0);
 
@@ -324,14 +324,14 @@ public class DevelopmentSettings extends PreferenceFragment
     }
 
     private void updateCpuUsageOptions() {
-        mShowCpuUsage.setChecked(Settings.System.getInt(getActivity().getContentResolver(),
-                Settings.System.SHOW_PROCESSES, 0) != 0);
+        mShowCpuUsage.setChecked(Settings.Global.getInt(getActivity().getContentResolver(),
+                Settings.Global.SHOW_PROCESSES, 0) != 0);
     }
     
     private void writeCpuUsageOptions() {
         boolean value = mShowCpuUsage.isChecked();
-        Settings.System.putInt(getActivity().getContentResolver(),
-                Settings.System.SHOW_PROCESSES, value ? 1 : 0);
+        Settings.Global.putInt(getActivity().getContentResolver(),
+                Settings.Global.SHOW_PROCESSES, value ? 1 : 0);
         Intent service = (new Intent())
                 .setClassName("com.android.systemui", "com.android.systemui.LoadAverageService");
         if (value) {
@@ -456,8 +456,8 @@ public class DevelopmentSettings extends PreferenceFragment
                 mCurrentDialog = ENABLE_ADB;
                 mOkDialog.setOnDismissListener(this);
             } else {
-                Settings.Secure.putInt(getActivity().getContentResolver(),
-                        Settings.Secure.ADB_ENABLED, 0);
+                Settings.Global.putInt(getActivity().getContentResolver(),
+                        Settings.Global.ADB_ENABLED, 0);
             }
         } else if (preference == mAdbOverNetwork) {
             if (mAdbOverNetwork.isChecked()) {
@@ -537,8 +537,8 @@ public class DevelopmentSettings extends PreferenceFragment
         if (which == DialogInterface.BUTTON_POSITIVE) {
             mOkClicked = true;
             if (mCurrentDialog.equals(ENABLE_ADB))
-                Settings.Secure.putInt(getActivity().getContentResolver(),
-                    Settings.Secure.ADB_ENABLED, 1);
+                Settings.Global.putInt(getActivity().getContentResolver(),
+                    Settings.Global.ADB_ENABLED, 1);
             else
                 Settings.Secure.putInt(getActivity().getContentResolver(),
                     Settings.Secure.ADB_PORT, 5555);

@@ -84,6 +84,7 @@ import android.telephony.TelephonyManager;
 import android.text.TextUtils;
 import android.text.format.DateUtils;
 import android.text.format.Formatter;
+import android.text.format.Time;
 import android.util.Log;
 import android.util.SparseArray;
 import android.view.LayoutInflater;
@@ -847,14 +848,14 @@ public class DataUsageSummary extends Fragment {
 
     private boolean getDataRoaming() {
         final ContentResolver resolver = getActivity().getContentResolver();
-        return Settings.Secure.getInt(resolver, Settings.Secure.DATA_ROAMING, 0) != 0;
+        return Settings.Global.getInt(resolver, Settings.Global.DATA_ROAMING, 0) != 0;
     }
 
     private void setDataRoaming(boolean enabled) {
         // TODO: teach telephony DataConnectionTracker to watch and apply
         // updates when changed.
         final ContentResolver resolver = getActivity().getContentResolver();
-        Settings.Secure.putInt(resolver, Settings.Secure.DATA_ROAMING, enabled ? 1 : 0);
+        Settings.Global.putInt(resolver, Settings.Global.DATA_ROAMING, enabled ? 1 : 0);
         mMenuDataRoaming.setChecked(enabled);
     }
 
@@ -1705,7 +1706,8 @@ public class DataUsageSummary extends Fragment {
                     new DialogInterface.OnClickListener() {
                         public void onClick(DialogInterface dialog, int which) {
                             final int cycleDay = cycleDayPicker.getValue();
-                            editor.setPolicyCycleDay(template, cycleDay);
+                            final String cycleTimezone = new Time().timezone;
+                            editor.setPolicyCycleDay(template, cycleDay, cycleTimezone);
                             target.updatePolicy(true);
                         }
                     });
@@ -1873,7 +1875,7 @@ public class DataUsageSummary extends Fragment {
 
     /**
      * Dialog to request user confirmation before setting
-     * {@link Settings.Secure#DATA_ROAMING}.
+     * {@link Settings.Global#DATA_ROAMING}.
      */
     public static class ConfirmDataRoamingFragment extends DialogFragment {
         public static void show(DataUsageSummary parent) {

@@ -57,6 +57,8 @@ public class ChooseLockPatternTutorial extends PreferenceActivity {
         private View mSkipButton;
         private LockPatternView mPatternView;
 
+        private byte mPatternSize = LockPatternUtils.PATTERN_SIZE_DEFAULT;
+
         @Override
         public void onCreate(Bundle savedInstanceState) {
             super.onCreate(savedInstanceState);
@@ -87,10 +89,12 @@ public class ChooseLockPatternTutorial extends PreferenceActivity {
             // Set up LockPatternView to be a non-interactive demo animation
             mPatternView = (LockPatternView) view.findViewById(R.id.lockPattern);
             ArrayList<LockPatternView.Cell> demoPattern = new ArrayList<LockPatternView.Cell>();
-            demoPattern.add(LockPatternView.Cell.of(0,0));
-            demoPattern.add(LockPatternView.Cell.of(0,1));
-            demoPattern.add(LockPatternView.Cell.of(1,1));
-            demoPattern.add(LockPatternView.Cell.of(2,1));
+            demoPattern.add(LockPatternView.Cell.of(0,0, mPatternSize));
+            demoPattern.add(LockPatternView.Cell.of(0,1, mPatternSize));
+            demoPattern.add(LockPatternView.Cell.of(1,1, mPatternSize));
+            demoPattern.add(LockPatternView.Cell.of(2,1, mPatternSize));
+            mPatternView = (LockPatternView) view.findViewById(R.id.lockPattern);
+            mPatternView.setLockPatternSize(mPatternSize);
             mPatternView.setPattern(LockPatternView.DisplayMode.Animate, demoPattern);
             mPatternView.disableInput();
 

@@ -131,7 +131,7 @@ public class WirelessSettings extends SettingsPreferenceFragment {
         }
 
         // Manually set dependencies for Bluetooth when not toggleable.
-        if (toggleable == null || !toggleable.contains(Settings.System.RADIO_BLUETOOTH)) {
+        if (toggleable == null || !toggleable.contains(Settings.Global.RADIO_BLUETOOTH)) {
             // No bluetooth-dependent items in the list. Code kept in case one is added later.
         }
 
