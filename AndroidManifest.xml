@@ -97,7 +97,9 @@
         <!-- Wireless Controls -->
 
         <activity android:name="Settings$WirelessSettingsActivity"
-                android:label="@string/wireless_networks_settings_title">
+                android:taskAffinity="com.android.settings"
+                android:label="@string/wireless_networks_settings_title"
+                android:parentActivityName="Settings">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <action android:name="android.settings.WIRELESS_SETTINGS" />
@@ -112,12 +114,14 @@
                 android:resource="@id/wireless_settings" />
         </activity>
 
+
         <!-- Top-level settings -->
 
         <activity android:name="Settings$WifiSettingsActivity"
+                android:taskAffinity=""
                 android:label="@string/wifi_settings"
                 android:configChanges="orientation|keyboardHidden|screenSize"
-                android:clearTaskOnLaunch="true">
+                android:excludeFromRecents="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <action android:name="android.settings.WIFI_SETTINGS" />
@@ -133,11 +137,11 @@
 
         <!-- Keep compatibility with old shortcuts. -->
         <activity-alias android:name=".wifi.WifiSettings"
+                android:taskAffinity="com.android.settings"
                 android:label="@string/wifi_settings"
                 android:targetActivity="Settings$WifiSettingsActivity"
                 android:configChanges="orientation|keyboardHidden|screenSize"
-                android:exported="true"
-                android:clearTaskOnLaunch="true">
+                android:exported="true">
             <meta-data android:name="com.android.settings.FRAGMENT_CLASS"
                 android:value="com.android.settings.wifi.WifiSettings" />
             <meta-data android:name="com.android.settings.TOP_LEVEL_HEADER_ID"
@@ -145,10 +149,23 @@
         </activity-alias>
 
         <activity android:name=".wifi.WifiPickerActivity"
-                  android:clearTaskOnLaunch="true">
+                android:taskAffinity="com.android.settings"
+                android:parentActivityName="Settings">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <action android:name="android.net.wifi.PICK_WIFI_NETWORK" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+
+        <activity android:name=".wifi.WifiSetupActivity"
+            android:theme="@style/setup_wizard_theme"
+            android:label="@string/wifi_setup_wizard_title"
+                android:icon="@drawable/empty_icon"
+            android:clearTaskOnLaunch="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <action android:name="com.android.net.wifi.SETUP_WIFI_NETWORK" />
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>
@@ -161,9 +178,10 @@
                   android:exported="true" />
 
         <activity android:name="Settings$AdvancedWifiSettingsActivity"
+                android:taskAffinity="com.android.settings"
                 android:label="@string/wifi_advanced_settings_label"
                 android:configChanges="orientation|keyboardHidden|screenSize"
-                android:clearTaskOnLaunch="true">
+                android:parentActivityName="Setting$WifiSettingsActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <action android:name="android.settings.WIFI_IP_SETTINGS" />
@@ -181,7 +199,9 @@
         </activity>
 
         <activity android:name=".wifi.WifiInfo"
-                android:theme="@android:style/Theme.Holo.DialogWhenLarge">
+                android:theme="@android:style/Theme.Holo.DialogWhenLarge"
+                android:taskAffinity="com.android.settings"
+                android:parentActivityName="Settings$WifiSettingsActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.DEVELOPMENT_PREFERENCE" />
@@ -190,7 +210,9 @@
         </activity>
 
         <activity android:name=".wifi.WifiConfigInfo"
-                android:theme="@android:style/Theme.Holo.DialogWhenLarge">
+                android:theme="@android:style/Theme.Holo.DialogWhenLarge"
+                android:taskAffinity="com.android.settings"
+                android:parentActivityName="Settings$WifiSettingsActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.DEVELOPMENT_PREFERENCE" />
