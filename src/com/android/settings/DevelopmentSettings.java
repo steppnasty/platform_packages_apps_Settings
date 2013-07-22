@@ -180,8 +180,8 @@ public class DevelopmentSettings extends PreferenceFragment
         mAdbOverNetwork.setChecked(Settings.Secure.getInt(cr,
                 Settings.Secure.ADB_PORT, 0) > 0);
 
-        mKeepScreenOn.setChecked(Settings.System.getInt(cr,
-                Settings.System.STAY_ON_WHILE_PLUGGED_IN, 0) != 0);
+        mKeepScreenOn.setChecked(Settings.Global.getInt(cr,
+                Settings.Global.STAY_ON_WHILE_PLUGGED_IN, 0) != 0);
         mAllowMockLocation.setChecked(Settings.Secure.getInt(cr,
                 Settings.Secure.ALLOW_MOCK_LOCATION, 0) != 0);
         updateHdcpValues();
@@ -477,8 +477,8 @@ public class DevelopmentSettings extends PreferenceFragment
                         Settings.Secure.ADB_PORT, -1);
             }
         } else if (preference == mKeepScreenOn) {
-            Settings.System.putInt(getActivity().getContentResolver(),
-                    Settings.System.STAY_ON_WHILE_PLUGGED_IN, 
+            Settings.Global.putInt(getActivity().getContentResolver(),
+                    Settings.Global.STAY_ON_WHILE_PLUGGED_IN, 
                     mKeepScreenOn.isChecked() ? 
                     (BatteryManager.BATTERY_PLUGGED_AC | BatteryManager.BATTERY_PLUGGED_USB) : 0);
         } else if (preference == mAllowMockLocation) {
