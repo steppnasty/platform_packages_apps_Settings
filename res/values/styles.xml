@@ -82,6 +82,11 @@
     <style name="Theme.CreateShortCut" parent="android:Theme.Holo.DialogWhenLarge">
     </style>
 
+    <style name="setup_wizard_theme" parent="android:Theme.Holo.NoActionBar">
+        <item name="android:windowSoftInputMode">adjustPan</item>
+        <item name="@*android:preferencePanelStyle">@*android:style/PreferencePanel.Dialog</item>
+    </style>
+
     <style name="wifi_item">
         <item name="android:layout_width">200dip</item>
         <item name="android:layout_height">wrap_content</item>
