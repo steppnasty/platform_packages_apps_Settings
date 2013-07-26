@@ -87,8 +87,8 @@ public class WirelessSettings extends SettingsPreferenceFragment {
             return true;
         }
         // Here we use the same logic in onCreate().
-        String toggleable = Settings.System.getString(context.getContentResolver(),
-                Settings.System.AIRPLANE_MODE_TOGGLEABLE_RADIOS);
+        String toggleable = Settings.Global.getString(context.getContentResolver(),
+                Settings.Global.AIRPLANE_MODE_TOGGLEABLE_RADIOS);
         return toggleable != null && toggleable.contains(type);
     }
 
@@ -110,8 +110,8 @@ public class WirelessSettings extends SettingsPreferenceFragment {
         mAirplaneModeEnabler = new AirplaneModeEnabler(activity, mAirplaneModePreference);
         mNfcEnabler = new NfcEnabler(activity, nfc, androidBeam);
 
-        String toggleable = Settings.System.getString(activity.getContentResolver(),
-                Settings.System.AIRPLANE_MODE_TOGGLEABLE_RADIOS);
+        String toggleable = Settings.Global.getString(activity.getContentResolver(),
+                Settings.Global.AIRPLANE_MODE_TOGGLEABLE_RADIOS);
 
         //enable/disable wimax depending on the value in config.xml
         boolean isWimaxEnabled = this.getResources().getBoolean(
