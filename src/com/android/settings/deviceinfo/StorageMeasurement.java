@@ -81,7 +81,7 @@ public class StorageMeasurement {
 
     private static final String DEFAULT_CONTAINER_PACKAGE = "com.android.defcontainer";
 
-    private static final ComponentName DEFAULT_CONTAINER_COMPONENT = new ComponentName(
+    public static final ComponentName DEFAULT_CONTAINER_COMPONENT = new ComponentName(
             DEFAULT_CONTAINER_PACKAGE, "com.android.defcontainer.DefaultContainerService");
 
     private final MeasurementHandler mHandler;

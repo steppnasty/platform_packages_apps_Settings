@@ -565,35 +565,6 @@
                 android:resource="@id/display_settings" />
         </activity-alias>
 
-        <activity android:name="Settings$DockSettingsActivity"
-                android:label="@string/dock_settings_title"
-                android:enabled="@bool/has_dock_settings"
-                android:clearTaskOnLaunch="true">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <action android:name="com.android.settings.DOCK_SETTINGS" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.VOICE_LAUNCH" />
-            </intent-filter>
-            <meta-data android:name="com.android.settings.FRAGMENT_CLASS"
-                android:value="com.android.settings.DockSettings" />
-            <meta-data android:name="com.android.settings.TOP_LEVEL_HEADER_ID"
-                android:resource="@id/dock_settings" />
-        </activity>
-
-        <!-- Keep compatibility with old shortcuts. -->
-        <activity-alias android:name="DockSettings"
-                android:label="@string/dock_settings_title"
-                android:enabled="@bool/has_dock_settings"
-                android:clearTaskOnLaunch="true"
-                android:exported="true"
-                android:targetActivity="Settings$DockSettingsActivity">
-            <meta-data android:name="com.android.settings.FRAGMENT_CLASS"
-                android:value="com.android.settings.DockSettings" />
-            <meta-data android:name="com.android.settings.TOP_LEVEL_HEADER_ID"
-                android:resource="@id/dock_settings" />
-        </activity-alias>
-
         <activity android:name="Settings$DeviceInfoSettingsActivity"
                 android:theme="@android:style/Theme.Holo.DialogWhenLarge"
                 android:label="@string/device_info_settings">
@@ -1172,21 +1143,6 @@
                 android:value="com.android.settings.nfc.AndroidBeam" />
         </activity>
 
-        <!-- Accessibility tutorial -->
-        <activity android:name="AccessibilityTutorialActivity"
-                android:label="@string/accessibility_tutorial_title"
-                android:configChanges="orientation"
-                android:immersive="true"
-                android:theme="@style/Theme.AccessibilityTutorialActivity">
-            <intent-filter>
-                <action android:name="android.settings.ACCESSIBILITY_TUTORIAL" />
-                <category android:name="android.intent.category.DEFAULT" />
-            </intent-filter>
-        </activity>
-
-
-
-
         <!-- Development settings -->
 
         <activity android:name="DebugIntentSender" android:label="@string/debug_intent_sender_label">
@@ -1306,20 +1262,6 @@
                 android:resource="@id/battery_settings" />
         </activity-alias>
 
-        <activity
-                android:name="Settings$ManageAccountsSettingsActivity"
-                android:label="@string/sync_settings">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <action android:name="android.settings.SYNC_SETTINGS" />
-                <category android:name="android.intent.category.DEFAULT" />
-            </intent-filter>
-            <meta-data android:name="com.android.settings.FRAGMENT_CLASS"
-                android:value="com.android.settings.accounts.ManageAccountsSettings" />
-            <meta-data android:name="com.android.settings.TOP_LEVEL_HEADER_ID"
-                android:resource="@id/sync_settings" />
-        </activity>
-
         <activity android:name="Settings$AccountSyncSettingsActivity"
             android:label="@string/account_sync_settings_title">
             <intent-filter>
@@ -1330,7 +1272,7 @@
             <meta-data android:name="com.android.settings.FRAGMENT_CLASS"
                 android:value="com.android.settings.accounts.AccountSyncSettings" />
             <meta-data android:name="com.android.settings.TOP_LEVEL_HEADER_ID"
-                android:resource="@id/sync_settings" />
+                android:resource="@id/account_settings" />
         </activity>
 
         <activity android:name="com.android.settings.accounts.AddAccountSettings"

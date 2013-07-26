@@ -34,9 +34,9 @@
 
     <!-- android:dependency="enable_wifi" -->
     <CheckBoxPreference
-            android:key="wifi_enable_watchdog_service"
-            android:title="@string/wifi_enable_watchdog_service"
-            android:summary="@string/wifi_enable_watchdog_service_summary"
+            android:key="wifi_poor_network_detection"
+            android:title="@string/wifi_poor_network_detection"
+            android:summary="@string/wifi_poor_network_detection_summary"
             android:persistent="false" />
 
     <ListPreference
@@ -47,6 +47,12 @@
             android:entries="@array/wifi_frequency_band_entries"
             android:entryValues="@array/wifi_frequency_band_values"
             />
+
+    <CheckBoxPreference
+            android:key="suspend_optimizations"
+            android:title="@string/wifi_suspend_optimizations"
+            android:summary="@string/wifi_suspend_optimizations_summary"
+            android:persistent="false" />
     
     <Preference android:key="mac_address" 
         style="?android:attr/preferenceInformationStyle" 

@@ -26,6 +26,7 @@ import android.preference.Preference;
 import android.preference.PreferenceScreen;
 import android.provider.Settings;
 import android.provider.Settings.Secure;
+import android.provider.Settings.Global;
 import android.text.TextUtils;
 import android.util.Log;
 import android.widget.Toast;
@@ -76,8 +77,8 @@ public class AdvancedWifiSettings extends SettingsPreferenceFragment
         CheckBoxPreference watchdogEnabled =
             (CheckBoxPreference) findPreference(KEY_ENABLE_WIFI_WATCHDOG);
         if (watchdogEnabled != null) {
-            watchdogEnabled.setChecked(Secure.getInt(getContentResolver(),
-                        Secure.WIFI_WATCHDOG_ON, 1) == 1);
+            watchdogEnabled.setChecked(Global.getInt(getContentResolver(),
+                        Global.WIFI_WATCHDOG_ON, 1) == 1);
 
             //TODO: Bring this back after changing watchdog behavior
             getPreferenceScreen().removePreference(watchdogEnabled);
@@ -144,8 +145,8 @@ public class AdvancedWifiSettings extends SettingsPreferenceFragment
                     Secure.WIFI_NETWORKS_AVAILABLE_NOTIFICATION_ON,
                     ((CheckBoxPreference) preference).isChecked() ? 1 : 0);
         } else if (KEY_ENABLE_WIFI_WATCHDOG.equals(key)) {
-            Secure.putInt(getContentResolver(),
-                    Secure.WIFI_WATCHDOG_ON,
+            Global.putInt(getContentResolver(),
+                    Global.WIFI_WATCHDOG_ON,
                     ((CheckBoxPreference) preference).isChecked() ? 1 : 0);
         } else {
             return super.onPreferenceTreeClick(screen, preference);

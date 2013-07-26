@@ -248,7 +248,7 @@ public class StorageVolumePreferenceCategory extends PreferenceCategory implemen
         String readOnly = "";
         if (Environment.MEDIA_MOUNTED_READ_ONLY.equals(state)) {
             state = Environment.MEDIA_MOUNTED;
-            readOnly = mResources.getString(R.string.read_only);
+            readOnly = mResources.getString(R.string.memory_available_read_only);
             if (mFormatPreference != null) {
                 removePreference(mFormatPreference);
             }

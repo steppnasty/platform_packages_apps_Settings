@@ -23,6 +23,7 @@ import android.content.ContentResolver;
 import android.content.DialogInterface;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
+import android.preference.Preference;
 import android.preference.PreferenceActivity;
 import android.preference.PreferenceFragment;
 import android.util.Log;
@@ -40,6 +41,21 @@ public class SettingsPreferenceFragment extends PreferenceFragment implements Di
     @Override
     public void onActivityCreated(Bundle savedInstanceState) {
         super.onActivityCreated(savedInstanceState);
+    }
+
+    protected void removePreference(String key) {
+        Preference pref = findPreference(key);
+        if (pref != null) {
+            getPreferenceScreen().removePreference(pref);
+        }
+    }
+
+    /**
+     * Override this if you want to show a help item in the menu, by returning the resource id.
+     * @return the resource id for the help url
+     */
+    protected int getHelpResource() {
+        return 0;
     }
 
     /*

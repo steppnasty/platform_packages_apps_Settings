@@ -26,6 +26,7 @@ import android.net.wifi.p2p.WifiP2pManager;
 import android.nfc.NfcAdapter;
 import android.os.Bundle;
 import android.os.SystemProperties;
+import android.os.UserHandle;
 import android.preference.CheckBoxPreference;
 import android.preference.Preference;
 import android.preference.PreferenceScreen;
@@ -37,7 +38,7 @@ import android.widget.Switch;
 import com.android.internal.telephony.TelephonyIntents;
 import com.android.internal.telephony.TelephonyProperties;
 import com.android.settings.nfc.NfcEnabler;
-import com.android.settings.wifi.p2p.WifiP2pEnabler;
+import com.android.settings.NsdEnabler;
 
 public class WirelessSettings extends SettingsPreferenceFragment {
 
@@ -60,8 +61,7 @@ public class WirelessSettings extends SettingsPreferenceFragment {
     private CheckBoxPreference mAirplaneModePreference;
     private NfcEnabler mNfcEnabler;
     private NfcAdapter mNfcAdapter;
-
-    private WifiP2pEnabler mWifiP2pEnabler;
+    private NsdEnabler mNsdEnabler;
 
     /**
      * Invoked on each preference click in this hierarchy, overrides
@@ -97,6 +97,8 @@ public class WirelessSettings extends SettingsPreferenceFragment {
         super.onCreate(savedInstanceState);
 
         addPreferencesFromResource(R.xml.wireless_settings);
+
+        final boolean isSecondaryUser = UserHandle.myUserId() != UserHandle.USER_OWNER;
 
         final Activity activity = getActivity();
         mAirplaneModePreference = (CheckBoxPreference) findPreference(KEY_TOGGLE_AIRPLANE);
@@ -150,18 +152,9 @@ public class WirelessSettings extends SettingsPreferenceFragment {
         }
 
         // Remove Mobile Network Settings if it's a wifi-only device.
-        if (Utils.isWifiOnly(getActivity())) {
-            getPreferenceScreen().removePreference(findPreference(KEY_MOBILE_NETWORK_SETTINGS));
+        if (isSecondaryUser || Utils.isWifiOnly(getActivity())) {
+            removePreference(KEY_MOBILE_NETWORK_SETTINGS);
         }
-
-        WifiP2pManager p2p = (WifiP2pManager) activity.getSystemService(Context.WIFI_P2P_SERVICE);
-
-        if (!getPackageManager().hasSystemFeature(PackageManager.FEATURE_WIFI_DIRECT)) {
-            getPreferenceScreen().removePreference(wifiP2p);
-        } else {
-            mWifiP2pEnabler = new WifiP2pEnabler(activity, wifiP2p);
-        }
-        getPreferenceScreen().removePreference(findPreference(KEY_WIFI_P2P_SETTINGS));
 
         // Enable Proxy selector settings if allowed.
         Preference mGlobalProxy = findPreference(KEY_PROXY_SETTINGS);
@@ -210,9 +203,8 @@ public class WirelessSettings extends SettingsPreferenceFragment {
         if (mNfcEnabler != null) {
             mNfcEnabler.resume();
         }
-
-        if (mWifiP2pEnabler != null) {
-            mWifiP2pEnabler.resume();
+        if (mNsdEnabler != null) {
+            mNsdEnabler.resume();
         }
     }
 
@@ -224,9 +216,8 @@ public class WirelessSettings extends SettingsPreferenceFragment {
         if (mNfcEnabler != null) {
             mNfcEnabler.pause();
         }
-
-        if (mWifiP2pEnabler != null) {
-            mWifiP2pEnabler.pause();
+        if (mNsdEnabler != null) {
+            mNsdEnabler.pause();
         }
     }
 

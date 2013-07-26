@@ -384,9 +384,9 @@ public class AccessibilitySettings extends SettingsPreferenceFragment implements
             final boolean serviceEnabled = accessibilityEnabled
                 && enabledServices.contains(componentName);
             if (serviceEnabled) {
-                preference.setSummary(getString(R.string.accessibility_service_state_on));
+                preference.setSummary(getString(R.string.accessibility_feature_state_on));
             } else {
-                preference.setSummary(getString(R.string.accessibility_service_state_off));
+                preference.setSummary(getString(R.string.accessibility_feature_state_off));
             }
 
             preference.setOrder(i);
@@ -492,11 +492,11 @@ public class AccessibilitySettings extends SettingsPreferenceFragment implements
                     Settings.Secure.TOUCH_EXPLORATION_ENABLED, 0) == 1);
             if (touchExplorationEnabled) {
                 mToggleTouchExplorationPreference.setSummary(
-                        getString(R.string.accessibility_service_state_on));
+                        getString(R.string.accessibility_feature_state_on));
                 mToggleTouchExplorationPreference.getExtras().putBoolean(EXTRA_CHECKED, true);
             } else {
                 mToggleTouchExplorationPreference.setSummary(
-                        getString(R.string.accessibility_service_state_off));
+                        getString(R.string.accessibility_feature_state_off));
                 mToggleTouchExplorationPreference.getExtras().putBoolean(EXTRA_CHECKED, false);
             }
 
@@ -727,25 +727,6 @@ public class AccessibilitySettings extends SettingsPreferenceFragment implements
             // Update accessibility enabled.
             Settings.Secure.putInt(getContentResolver(),
                     Settings.Secure.ACCESSIBILITY_ENABLED, accessibilityEnabled ? 1 : 0);
-        }
-    }
-
-    public static class ToggleTouchExplorationFragment extends TogglePreferenceFragment {
-        @Override
-        public void onPreferenceToggled(String preferenceKey, boolean enabled) {
-            Settings.Secure.putInt(getContentResolver(),
-                    Settings.Secure.TOUCH_EXPLORATION_ENABLED, enabled ? 1 : 0);
-            if (enabled) {
-                SharedPreferences preferences = getActivity().getPreferences(Context.MODE_PRIVATE);
-                final boolean launchAccessibilityTutorial = !preferences.getBoolean(
-                        KEY_ACCESSIBILITY_TUTORIAL_LAUNCHED_ONCE, false);
-                if (launchAccessibilityTutorial) {
-                    preferences.edit().putBoolean(KEY_ACCESSIBILITY_TUTORIAL_LAUNCHED_ONCE,
-                            true).commit();
-                    Intent intent = new Intent(AccessibilityTutorialActivity.ACTION);
-                    getActivity().startActivity(intent);
-                }
-            }
         }
     }
 

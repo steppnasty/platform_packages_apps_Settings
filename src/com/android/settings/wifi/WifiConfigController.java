@@ -129,8 +129,7 @@ public class WifiConfigController implements TextWatcher,
         if (config == null) {
             return false;
         }
-        String values[] = {config.ca_cert.value(), config.client_cert.value(),
-                config.private_key.value()};
+        String values[] = {config.ca_cert.value(), config.client_cert.value() };
         for (String value : values) {
             if (value != null && value.startsWith(KEYSTORE_SPACE)) {
                 return true;
@@ -222,18 +221,6 @@ public class WifiConfigController implements TextWatcher,
                 } else {
                     mProxySettingsSpinner.setSelection(PROXY_NONE);
                 }
-
-                if (config.status == Status.DISABLED &&
-                        config.disableReason == WifiConfiguration.DISABLED_DNS_FAILURE) {
-                    addRow(group, R.string.wifi_disabled_heading,
-                            context.getString(R.string.wifi_disabled_help));
-                }
-
-            }
-
-            /* Show network setup options only for a new network */
-            if (mAccessPoint.networkId == INVALID_NETWORK_ID && mAccessPoint.wpsAvailable) {
-                showNetworkSetupFields();
             }
 
             if (mAccessPoint.networkId == INVALID_NETWORK_ID || mEdit) {
@@ -371,9 +358,6 @@ public class WifiConfigController implements TextWatcher,
                 config.client_cert.setValue((mEapUserCertSpinner.getSelectedItemPosition() == 0) ?
                         "" : KEYSTORE_SPACE + Credentials.USER_CERTIFICATE +
                         (String) mEapUserCertSpinner.getSelectedItem());
-                config.private_key.setValue((mEapUserCertSpinner.getSelectedItemPosition() == 0) ?
-                        "" : KEYSTORE_SPACE + Credentials.USER_PRIVATE_KEY +
-                        (String) mEapUserCertSpinner.getSelectedItem());
                 config.identity.setValue((mEapIdentityView.length() == 0) ? "" :
                         mEapIdentityView.getText().toString());
                 config.anonymous_identity.setValue((mEapAnonymousView.length() == 0) ? "" :
@@ -489,32 +473,6 @@ public class WifiConfigController implements TextWatcher,
         return MANUAL;
     }
 
-    WpsInfo getWpsConfig() {
-        WpsInfo config = new WpsInfo();
-        switch (mNetworkSetupSpinner.getSelectedItemPosition()) {
-            case WPS_PBC:
-                config.setup = WpsInfo.PBC;
-                break;
-            case WPS_KEYPAD:
-                config.setup = WpsInfo.KEYPAD;
-                break;
-            case WPS_DISPLAY:
-                config.setup = WpsInfo.DISPLAY;
-                break;
-            default:
-                config.setup = WpsInfo.INVALID;
-                Log.e(TAG, "WPS not selected type");
-                return config;
-        }
-        config.pin = ((TextView) mView.findViewById(R.id.wps_pin)).getText().toString();
-        config.BSSID = (mAccessPoint != null) ? mAccessPoint.bssid : null;
-
-        config.proxySettings = mProxySettings;
-        config.ipAssignment = mIpAssignment;
-        config.linkProperties = new LinkProperties(mLinkProperties);
-        return config;
-    }
-
     private void showSecurityFields() {
         if (mInXlSetupWizard) {
             // Note: XL SetupWizard won't hide "EAP" settings here.
@@ -564,7 +522,7 @@ public class WifiConfigController implements TextWatcher,
                 setCertificate(mEapCaCertSpinner, Credentials.CA_CERTIFICATE,
                         config.ca_cert.value());
                 setCertificate(mEapUserCertSpinner, Credentials.USER_PRIVATE_KEY,
-                        config.private_key.value());
+                        config.key_id.value());
                 mEapIdentityView.setText(config.identity.value());
                 mEapAnonymousView.setText(config.anonymous_identity.value());
             }
@@ -586,33 +544,6 @@ public class WifiConfigController implements TextWatcher,
         }
     }
     
-    private void showNetworkSetupFields() {
-        mView.findViewById(R.id.setup_fields).setVisibility(View.VISIBLE);
-
-        if (mNetworkSetupSpinner == null) {
-            mNetworkSetupSpinner = (Spinner) mView.findViewById(R.id.network_setup);
-            mNetworkSetupSpinner.setOnItemSelectedListener(this);
-        }
-
-        int pos = mNetworkSetupSpinner.getSelectedItemPosition();
-
-        /* Show pin text input if needed */
-        if (pos == WPS_KEYPAD) {
-            mView.findViewById(R.id.wps_fields).setVisibility(View.VISIBLE);
-        } else {
-            mView.findViewById(R.id.wps_fields).setVisibility(View.GONE);
-        }
-
-        /* show/hide manual security fields appropriately */
-        if ((pos == WPS_DISPLAY) || (pos == WPS_KEYPAD)
-                || (pos == WPS_PBC)) {
-            mView.findViewById(R.id.security_fields).setVisibility(View.GONE);
-        } else {
-            mView.findViewById(R.id.security_fields).setVisibility(View.VISIBLE);
-        }
-
-    }
-
     private void showIpConfigFields() {
         WifiConfiguration config = null;
 
@@ -785,8 +716,6 @@ public class WifiConfigController implements TextWatcher,
             showSecurityFields();
         } else if (parent == mEapMethodSpinner) {
             showSecurityFields();
-        } else if (parent == mNetworkSetupSpinner) {
-            showNetworkSetupFields();
         } else if (parent == mProxySettingsSpinner) {
             showProxyFields();
         } else {

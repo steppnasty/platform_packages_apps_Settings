@@ -90,6 +90,8 @@
     <item msgid="7979680559596111948">"Прекидање везе..."</item>
     <item msgid="1634960474403853625">"Веза је прекинута"</item>
     <item msgid="746097431216080650">"Неуспешно"</item>
+    <item msgid="6367044185730295334">"Блокирано"</item>
+    <item msgid="503942654197908005">"Привремено избегавање лоше везе"</item>
   </string-array>
   <string-array name="wifi_status_with_ssid">
     <item msgid="7714855332363650812"></item>
@@ -102,6 +104,8 @@
     <item msgid="7698638434317271902">"Прекидање везе са мрежом <xliff:g id="NETWORK_NAME">%1$s</xliff:g>…"</item>
     <item msgid="197508606402264311">"Веза је прекинута"</item>
     <item msgid="8578370891960825148">"Неуспешно"</item>
+    <item msgid="5660739516542454527">"Блокирано"</item>
+    <item msgid="1805837518286731242">"Привремено избегавање лоше везе"</item>
   </string-array>
     <!-- no translation found for wifi_security:0 (8491993170197127709) -->
     <!-- no translation found for wifi_security:1 (6524315248437318854) -->
@@ -114,6 +118,7 @@
     <item msgid="1160193392455075561">"PEAP"</item>
     <item msgid="7981731051382306293">"TLS"</item>
     <item msgid="2892994535305020162">"TTLS"</item>
+    <item msgid="435667726254379514">"PWD"</item>
   </string-array>
   <string-array name="wifi_p2p_wps_setup">
     <item msgid="5085064298144493867">"Притискање дугмета"</item>
@@ -163,6 +168,7 @@
     <item msgid="8615575908717909498">"PEAP"</item>
     <item msgid="8667872640594311615">"TLS"</item>
     <item msgid="7182812872984827322">"TTLS"</item>
+    <item msgid="2318274046749286642">"PWD"</item>
   </string-array>
   <string-array name="wifi_phase2_entries">
     <item msgid="1818786254010764570">"Ништа"</item>
@@ -170,12 +176,6 @@
     <item msgid="1524112260493662517">"MSCHAP"</item>
     <item msgid="5923246669412752932">"MSCHAPV2"</item>
     <item msgid="8651992560135239389">"GTC"</item>
-  </string-array>
-  <string-array name="wifi_network_setup">
-    <item msgid="3318069057130819160">"Искључено"</item>
-    <item msgid="3564693183575724416">"Притисните дугме"</item>
-    <item msgid="7468724146672456026">"PIN са приступне тачке"</item>
-    <item msgid="7364462169350112617">"PIN са овог уређаја"</item>
   </string-array>
   <string-array name="wifi_ip_settings">
     <item msgid="3906714200993111074">"DHCP"</item>
@@ -211,11 +211,6 @@
     <item msgid="3738430123799803530">"Уклоњива SD картица"</item>
     <item msgid="4498124044785815005">"Нека систем одлучи"</item>
   </string-array>
-  <string-array name="silent_mode_entries">
-    <item msgid="783505504936446770">"Искључено"</item>
-    <item msgid="4804571292609523335">"Вибрирај"</item>
-    <item msgid="595707141547423573">"Искључи звук"</item>
-  </string-array>
   <string-array name="long_press_timeout_selector_titles">
     <item msgid="3511504869290423954">"Кратко"</item>
     <item msgid="2560532955514699713">"Средње"</item>
@@ -249,6 +244,28 @@
     <item msgid="7705857441213621835">"Размера анимације 5x"</item>
     <item msgid="6660750935954853365">"Размера анимације 10x"</item>
   </string-array>
+  <string-array name="animator_duration_scale_entries">
+    <item msgid="6039901060648228241">"Анимација је искључена"</item>
+    <item msgid="1138649021950863198">"Размера анимације 0,5x"</item>
+    <item msgid="4394388961370833040">"Размера анимације 1x"</item>
+    <item msgid="8125427921655194973">"Размера анимације 1,5x"</item>
+    <item msgid="3334024790739189573">"Размера анимације 2x"</item>
+    <item msgid="3170120558236848008">"Размера анимације 5x"</item>
+    <item msgid="1069584980746680398">"Размера анимације 10x"</item>
+  </string-array>
+  <string-array name="overlay_display_devices_entries">
+    <item msgid="1606809880904982133">"Ниједно"</item>
+    <item msgid="688482401508173818">"720×480 mdpi"</item>
+    <item msgid="1725473474827398815">"1280×720 tvdpi"</item>
+    <item msgid="6813511923592083251">"1920×1080 xhdpi"</item>
+    <item msgid="3646519549495410112">"1280×720 tvdpi и 1920×1080 xhdpi"</item>
+  </string-array>
+  <string-array name="enable_opengl_traces_entries">
+    <item msgid="3191973083884253830">"Ниједан"</item>
+    <item msgid="9089630089455370183">"Logcat"</item>
+    <item msgid="5397807424362304288">"Systrace (графика)"</item>
+    <item msgid="1340692776955662664">"Групно позивање функције glGetError"</item>
+  </string-array>
   <string-array name="app_process_limit_entries">
     <item msgid="3401625457385943795">"Стандардно ограничење"</item>
     <item msgid="4071574792028999443">"Без позадинских процеса"</item>
@@ -272,5 +289,10 @@
     <item msgid="4039737283841672166">"Повезано"</item>
     <item msgid="4042143101664725090">"Време чекања"</item>
     <item msgid="7664124146786465092">"Неуспешно"</item>
+  </string-array>
+  <string-array name="security_settings_premium_sms_values">
+    <item msgid="7389829271787670252">"Питај"</item>
+    <item msgid="5077768429488260031">"Никада не дозволи"</item>
+    <item msgid="1417929597727989746">"Увек дозволи"</item>
   </string-array>
 </resources>

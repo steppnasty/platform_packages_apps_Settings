@@ -189,8 +189,8 @@ public class UserDictionarySettings extends ListFragment implements DialogCreata
     private ListAdapter createAdapter() {
         return new MyAdapter(getActivity(),
                 R.layout.user_dictionary_item, mCursor,
-                new String[] { UserDictionary.Words.WORD, UserDictionary.Words._ID },
-                new int[] { android.R.id.text1, R.id.delete_button }, this);
+                new String[] { UserDictionary.Words.WORD, UserDictionary.Words.SHORTCUT },
+                new int[] { android.R.id.text1, android.R.id.text2 }, this);
     }
 
     @Override

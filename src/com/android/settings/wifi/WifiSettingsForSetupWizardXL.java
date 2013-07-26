@@ -145,7 +145,6 @@ public class WifiSettingsForSetupWizardXL extends Activity implements OnClickLis
         // There's no button here enabling wifi network, so we need to enable it without
         // users' request.
         mWifiManager.setWifiEnabled(true);
-        mWifiManager.asyncConnect(this, new WifiServiceHandler());
 
         mWifiSettings =
                 (WifiSettings)getFragmentManager().findFragmentById(R.id.wifi_setup_fragment);
@@ -614,7 +613,13 @@ public class WifiSettingsForSetupWizardXL extends Activity implements OnClickLis
                     Log.d(TAG, String.format("forgeting Wi-Fi network \"%s\" (id: %d)",
                             config.SSID, config.networkId));
                 }
-                mWifiManager.forgetNetwork(config.networkId);
+                mWifiManager.forget(config.networkId, new WifiManager.ActionListener() {
+                        public void onSuccess() {
+                        }
+                        public void onFailure(int reason) {
+                            //TODO: Add failure UI
+                        }
+                        });
             }
 
             mWifiSettingsFragmentLayout.setVisibility(View.GONE);
@@ -773,6 +778,12 @@ public class WifiSettingsForSetupWizardXL extends Activity implements OnClickLis
      */
     /* package */ void onSaveNetwork(WifiConfiguration config) {
         // We want to both save and connect a network. connectNetwork() does both.
-        mWifiManager.connectNetwork(config);
+        mWifiManager.connect(config, new WifiManager.ActionListener() {
+                public void onSuccess() {
+                }
+                public void onFailure(int reason) {
+                //TODO: Add failure UI
+                }
+                });
     }
 }

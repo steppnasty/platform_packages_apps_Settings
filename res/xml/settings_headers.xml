@@ -19,7 +19,8 @@
 
 
     <!-- WIRELESS and NETWORKS -->
-    <header android:title="@string/header_category_wireless_networks" />
+    <header android:id="@+id/wireless_section"
+        android:title="@string/header_category_wireless_networks" />
 
     <!-- Wifi -->
     <header
@@ -56,41 +57,10 @@
         android:breadCrumbTitle="@string/wireless_networks_settings_title"
         android:fragment="com.android.settings.WirelessSettings"
         android:icon="@drawable/empty_icon" />
-    
-    <!-- AXControl Header -->
-    <header android:title="@string/header_category_ax" />
-    
-    <!-- Performance Settings -->
-    <header
-        android:id="@+id/performance_settings"
-        android:title="@string/performance_prefs_title"
-        android:fragment="com.android.settings.PerformanceSettings"
-        android:icon="@drawable/ic_settings_performance">
-    </header>
-
-    <!-- OTAUpdater Header -->
-    <header
-        android:title="@string/otaupdate_settings_title"
-        android:icon="@drawable/ic_settings_updates">
-        <intent
-            android:action="android.intent.action.MAIN"
-            android:targetPackage="com.updater.ota"
-            android:targetClass="com.updater.ota.OTAUpdaterActivity" />
-    </header>
-
-    <!-- Themes -->
-    <header
-        android:id="@+id/themes_settings"
-        android:icon="@drawable/ic_settings_themes"
-        android:title="@string/themes_settings_title">
-        <intent
-            android:action="android.intent.action.MAIN"
-            android:targetPackage="com.tmobile.themechooser"
-            android:targetClass="com.tmobile.themechooser.ThemeChooser" />
-    </header>
 
     <!-- DEVICE -->
-    <header android:title="@string/header_category_device" />
+    <header android:id="@+id/device_section"
+        android:title="@string/header_category_device" />
 
     <!-- Sound -->
     <header
@@ -127,6 +97,13 @@
         android:title="@string/applications_settings"
         android:id="@+id/application_settings" />
 
+    <!-- Manage users -->
+    <header
+        android:fragment="com.android.settings.users.UserSettings"
+        android:icon="@drawable/ic_settings_multiuser"
+        android:title="@string/user_settings_title"
+        android:id="@+id/user_settings" />
+
     <!-- Manufacturer hook -->
     <header
         android:fragment="com.android.settings.WirelessSettings"
@@ -136,16 +113,8 @@
 
 
     <!-- PERSONAL -->
-    <header android:title="@string/header_category_personal" />
-
-    <!-- Data Sync. The settings activity will ensure this is resolved to an
-         activity on the system image, otherwise it will remove this
-         preference. -->
-    <header
-        android:fragment="com.android.settings.accounts.ManageAccountsSettings"
-        android:icon="@drawable/ic_settings_sync"
-        android:title="@string/sync_settings"
-        android:id="@+id/sync_settings" />
+    <header android:id="@+id/personal_section"
+        android:title="@string/header_category_personal" />
 
     <!-- Location -->
     <header
@@ -175,16 +144,22 @@
         android:title="@string/privacy_settings"
         android:id="@+id/privacy_settings" />
 
+    <!--  ACCOUNTS section -->
+    <header
+            android:id="@+id/account_settings"
+            android:title="@string/account_settings" />
+
+    <header
+            android:id="@+id/account_add"
+            android:title="@string/add_account_label"
+            android:icon="@drawable/ic_menu_add">
+        <intent
+            android:action="android.settings.ADD_ACCOUNT_SETTINGS"/>
+    </header>
 
     <!-- SYSTEM -->
-    <header android:title="@string/header_category_system" />
-
-    <!-- Dock -->
-    <header
-        android:id="@+id/dock_settings"
-        android:fragment="com.android.settings.DockSettings"
-        android:icon="@drawable/ic_settings_dock"
-        android:title="@string/dock_settings" />
+    <header android:id="@+id/system_section"
+        android:title="@string/header_category_system" />
 
     <!-- Date & Time -->
     <header

@@ -52,30 +52,6 @@
             android:textAppearance="?android:attr/textAppearanceMedium"
             android:textSize="20sp" />
     </FrameLayout>
-    <LinearLayout
-        android:id="@+id/wps_fields"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:visibility="gone">
-        <TextView
-            android:layout_width="match_parent"
-            android:minWidth="128dip"
-            android:layout_height="wrap_content"
-            android:text="@string/wifi_wps_pin"
-            android:textAppearance="?android:attr/textAppearanceMedium"
-            android:textSize="20sp"
-            android:gravity="bottom" />
-
-        <EditText
-            android:id="@+id/wps_pin"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:singleLine="true"
-            android:inputType="textPassword"
-            android:textAppearance="?android:attr/textAppearanceMedium"
-            android:textSize="20sp" />
-    </LinearLayout>
     <TableLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -92,19 +68,19 @@
                 android:minWidth="128dip"
                 android:layout_height="wrap_content"
                 android:minHeight="56dip"
-                android:paddingRight="16dip"
-                android:layout_alignParentLeft="true"
+                android:paddingEnd="16dip"
+                android:layout_alignParentStart="true"
                 android:text="@string/wifi_ssid"
                 android:textAppearance="?android:attr/textAppearanceMedium"
                 android:textSize="20sp"
-                android:gravity="left|center_vertical" />
+                android:gravity="start|center_vertical" />
 
             <FrameLayout
                 android:id="@+id/ssid_layout"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_alignBottom="@id/ssid_text"
-                android:layout_toRightOf="@id/ssid_text">
+                android:layout_toEndOf="@id/ssid_text">
                 <EditText
                     android:id="@+id/ssid"
                     android:layout_width="368dip"
@@ -129,7 +105,7 @@
                 android:text="@string/wifi_password"
                 android:textAppearance="?android:attr/textAppearanceMedium"
                 android:textSize="20sp"
-                android:gravity="left|center_vertical" />
+                android:gravity="start|center_vertical" />
 
             <LinearLayout
                 android:id="@+id/password_layout"
@@ -186,7 +162,7 @@
                     android:layout_width="368dip"
                     android:layout_height="wrap_content"
                     android:minHeight="56dip"
-                    android:paddingLeft="4dip"/>
+                    android:paddingStart="4dip"/>
             </FrameLayout>
         </TableRow>
     </TableLayout>
@@ -203,44 +179,6 @@
                   android:layout_width="match_parent"
                   android:layout_height="wrap_content"
                   android:orientation="vertical"/>
-
-    <LinearLayout android:id="@+id/setup_fields"
-                  android:layout_width="match_parent"
-                  android:layout_height="wrap_content"
-                  android:orientation="vertical"
-                  android:visibility="gone">
-
-        <TextView
-                  android:layout_width="match_parent"
-                  android:layout_height="wrap_content"
-                  android:text="@string/wifi_network_setup" />
-
-        <Spinner android:id="@+id/network_setup"
-                 android:layout_width="match_parent"
-                 android:layout_height="wrap_content"
-                 android:prompt="@string/wifi_network_setup"
-                 android:entries="@array/wifi_network_setup" />
-
-    </LinearLayout>
-
-    <!--
-    <LinearLayout android:id="@+id/wps_fields"
-                  android:layout_width="match_parent"
-                  android:layout_height="wrap_content"
-                  android:orientation="vertical"
-                  android:visibility="gone">
-
-        <TextView
-                  android:layout_width="match_parent"
-                  android:layout_height="wrap_content"
-                  android:text="@string/wifi_wps_pin" />
-
-        <EditText android:id="@+id/wps_pin"
-                  android:layout_width="match_parent"
-                  android:layout_height="wrap_content"
-                  android:singleLine="true"
-                  android:inputType="textPassword" />
-    </LinearLayout> -->
 
     <!--  android:id="@+id/security_fields" -->
     <LinearLayout

@@ -40,7 +40,12 @@
                 android:entries="@array/screen_timeout_entries"
                 android:entryValues="@array/screen_timeout_values" />
 
-        <ListPreference
+        <PreferenceScreen
+                android:key="screensaver"
+                android:title="@string/screensaver_settings_title"
+                android:fragment="com.android.settings.DreamSettings" />
+
+        <com.android.settings.WarnedListPreference
                 android:key="font_size"
                 android:title="@string/title_font_size"
                 android:summary="@string/summary_font_size"
@@ -49,19 +54,13 @@
                 android:dialogTitle="@string/dialog_title_font_size" />
 
         <CheckBoxPreference
-            android:key="volume_wake"
-            android:title="@string/volume_wake_title"
-            android:summary="@string/volume_wake_summary" 
-            android:defaultValue="false" />
-
-        <CheckBoxPreference
-            android:key="trackball_wake_toggle"
-            android:title="@string/trackball_wake_toggle_title"
-            android:summary="@string/trackball_wake_toggle_summary" />
-
-        <CheckBoxPreference
             android:key="notification_pulse"
             android:title="@string/notification_pulse_title"
             android:persistent="false" />
+
+        <PreferenceScreen
+                android:key="wifi_display"
+                android:title="@string/wifi_display_settings_title"
+                android:fragment="com.android.settings.wfd.WifiDisplaySettings" />
 
 </PreferenceScreen>
