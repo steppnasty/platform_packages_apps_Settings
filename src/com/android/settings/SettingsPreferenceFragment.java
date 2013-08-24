@@ -21,12 +21,18 @@ import android.app.DialogFragment;
 import android.app.Fragment;
 import android.content.ContentResolver;
 import android.content.DialogInterface;
+import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.net.Uri;
 import android.os.Bundle;
 import android.preference.Preference;
 import android.preference.PreferenceActivity;
 import android.preference.PreferenceFragment;
+import android.text.TextUtils;
 import android.util.Log;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
 import android.widget.Button;
 
 /**
@@ -36,11 +42,29 @@ public class SettingsPreferenceFragment extends PreferenceFragment implements Di
 
     private static final String TAG = "SettingsPreferenceFragment";
 
+    private static final int MENU_HELP = Menu.FIRST + 100;
+
     private SettingsDialogFragment mDialogFragment;
+
+    private String mHelpUrl;
+
+    @Override
+    public void onCreate(Bundle icicle) {
+        super.onCreate(icicle);
+
+        // Prepare help url and enable menu if necessary
+        int helpResource = getHelpResource();
+        if (helpResource != 0) {
+            mHelpUrl = getResources().getString(helpResource);
+        }
+    }
 
     @Override
     public void onActivityCreated(Bundle savedInstanceState) {
         super.onActivityCreated(savedInstanceState);
+        if (!TextUtils.isEmpty(mHelpUrl)) {
+            setHasOptionsMenu(true);
+        }
     }
 
     protected void removePreference(String key) {
@@ -56,6 +80,14 @@ public class SettingsPreferenceFragment extends PreferenceFragment implements Di
      */
     protected int getHelpResource() {
         return 0;
+    }
+
+    @Override
+    public void onCreateOptionsMenu(Menu menu, MenuInflater inflater) {
+        if (mHelpUrl != null && getActivity() != null) {
+            MenuItem helpItem = menu.add(0, MENU_HELP, 0, R.string.help_label);
+            HelpUtils.prepareHelpMenuItem(getActivity(), helpItem, mHelpUrl);
+        }
     }
 
     /*
@@ -146,6 +178,10 @@ public class SettingsPreferenceFragment extends PreferenceFragment implements Di
         }
     }
 
+    public void onDialogShowing() {
+        // override in subclass to attach a dismiss listener, for instance
+    }
+
     public static class SettingsDialogFragment extends DialogFragment {
         private static final String KEY_DIALOG_ID = "key_dialog_id";
         private static final String KEY_PARENT_FRAGMENT_ID = "key_parent_fragment_id";
@@ -176,6 +212,15 @@ public class SettingsPreferenceFragment extends PreferenceFragment implements Di
             if (mParentFragment != null) {
                 outState.putInt(KEY_DIALOG_ID, mDialogId);
                 outState.putInt(KEY_PARENT_FRAGMENT_ID, mParentFragment.getId());
+            }
+        }
+
+        @Override
+        public void onStart() {
+            super.onStart();
+
+            if (mParentFragment != null && mParentFragment instanceof SettingsPreferenceFragment) {
+                ((SettingsPreferenceFragment) mParentFragment).onDialogShowing();
             }
         }
 

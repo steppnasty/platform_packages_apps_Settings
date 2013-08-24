@@ -21,39 +21,72 @@ import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.PackageManager.NameNotFoundException;
+import android.content.pm.UserInfo;
 import android.content.res.Resources;
+import android.graphics.drawable.Drawable;
 import android.net.ConnectivityManager;
 import android.net.TrafficStats;
+import android.os.UserManager;
 import android.text.TextUtils;
 import android.util.SparseArray;
 
 import com.android.settings.R;
 import com.android.settings.Utils;
+import com.android.settings.users.UserUtils;
 
+/**
+ * Return details about a specific UID, handling special cases like
+ * {@link TrafficStats#UID_TETHERING} and {@link UserInfo}.
+ */
 public class UidDetailProvider {
     private final Context mContext;
     private final SparseArray<UidDetail> mUidDetailCache;
+
+    public static int buildKeyForUser(int userHandle) {
+        return -(2000 + userHandle);
+    }
 
     public UidDetailProvider(Context context) {
         mContext = context.getApplicationContext();
         mUidDetailCache = new SparseArray<UidDetail>();
     }
 
-    public synchronized void clearCache() {
-        mUidDetailCache.clear();
+    public void clearCache() {
+        synchronized (mUidDetailCache) {
+            mUidDetailCache.clear();
+        }
     }
 
     /**
      * Resolve best descriptive label for the given UID.
      */
-    public synchronized UidDetail getUidDetail(int uid, boolean blocking) {
-        final UidDetail cached = mUidDetailCache.get(uid);
-        if (cached != null) {
-            return cached;
+    public UidDetail getUidDetail(int uid, boolean blocking) {
+        UidDetail detail;
+
+        synchronized (mUidDetailCache) {
+            detail = mUidDetailCache.get(uid);
+        }
+
+        if (detail != null) {
+            return detail;
         } else if (!blocking) {
             return null;
         }
 
+        detail = buildUidDetail(uid);
+
+        synchronized (mUidDetailCache) {
+            mUidDetailCache.put(uid, detail);
+        }
+
+        return detail;
+    }
+
+    /**
+     * Build {@link UidDetail} object, blocking until all {@link Drawable}
+     * lookup is finished.
+     */
+    private UidDetail buildUidDetail(int uid) {
         final Resources res = mContext.getResources();
         final PackageManager pm = mContext.getPackageManager();
 
@@ -66,26 +99,36 @@ public class UidDetailProvider {
             case android.os.Process.SYSTEM_UID:
                 detail.label = res.getString(R.string.process_kernel_label);
                 detail.icon = pm.getDefaultActivityIcon();
-                mUidDetailCache.put(uid, detail);
                 return detail;
             case TrafficStats.UID_REMOVED:
-                detail.label = res.getString(R.string.data_usage_uninstalled_apps);
+                detail.label = res.getString(UserManager.supportsMultipleUsers()
+                        ? R.string.data_usage_uninstalled_apps_users
+                        : R.string.data_usage_uninstalled_apps);
                 detail.icon = pm.getDefaultActivityIcon();
-                mUidDetailCache.put(uid, detail);
                 return detail;
             case TrafficStats.UID_TETHERING:
                 final ConnectivityManager cm = (ConnectivityManager) mContext.getSystemService(
                         Context.CONNECTIVITY_SERVICE);
                 detail.label = res.getString(Utils.getTetheringLabel(cm));
                 detail.icon = pm.getDefaultActivityIcon();
-                mUidDetailCache.put(uid, detail);
                 return detail;
+        }
+
+        // Handle keys that are actually user handles
+        if (uid <= -2000) {
+            final int userHandle = (-uid) - 2000;
+            final UserManager um = (UserManager) mContext.getSystemService(Context.USER_SERVICE);
+            final UserInfo info = um.getUserInfo(userHandle);
+            if (info != null) {
+                detail.label = res.getString(R.string.running_process_item_user_label, info.name);
+                detail.icon = UserUtils.getUserIcon(um, info, res);
+                return detail;
+            }
         }
 
         // otherwise fall back to using packagemanager labels
         final String[] packageNames = pm.getPackagesForUid(uid);
         final int length = packageNames != null ? packageNames.length : 0;
-
         try {
             if (length == 1) {
                 final ApplicationInfo info = pm.getApplicationInfo(packageNames[0], 0);
@@ -113,7 +156,6 @@ public class UidDetailProvider {
             detail.label = Integer.toString(uid);
         }
 
-        mUidDetailCache.put(uid, detail);
         return detail;
     }
 }

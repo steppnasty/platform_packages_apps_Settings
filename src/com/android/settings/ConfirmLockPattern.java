@@ -180,7 +180,6 @@ public class ConfirmLockPattern extends PreferenceActivity {
         }
 
         private void updateStage(Stage stage) {
-
             switch (stage) {
                 case NeedToUnlock:
                     if (mHeaderText != null) {
@@ -220,6 +219,10 @@ public class ConfirmLockPattern extends PreferenceActivity {
                     mLockPatternView.setEnabled(false); // appearance of being disabled
                     break;
             }
+
+            // Always announce the header for accessibility. This is a no-op
+            // when accessibility is disabled.
+            mHeaderTextView.announceForAccessibility(mHeaderTextView.getText());
         }
 
         private Runnable mClearPatternRunnable = new Runnable() {
@@ -259,7 +262,7 @@ public class ConfirmLockPattern extends PreferenceActivity {
 
                     Intent intent = new Intent();
                     intent.putExtra(ChooseLockSettingsHelper.EXTRA_KEY_PASSWORD,
-                                    mLockPatternUtils.patternToString(pattern));
+                                    LockPatternUtils.patternToString(pattern));
 
                     getActivity().setResult(Activity.RESULT_OK, intent);
                     getActivity().finish();

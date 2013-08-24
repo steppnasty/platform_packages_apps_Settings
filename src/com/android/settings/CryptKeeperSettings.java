@@ -61,14 +61,14 @@ public class CryptKeeperSettings extends Fragment {
         public void onReceive(Context context, Intent intent) {
             String action = intent.getAction();
             if (action.equals(Intent.ACTION_BATTERY_CHANGED)) {
-                int level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, 0);
-                int plugged = intent.getIntExtra(BatteryManager.EXTRA_PLUGGED, 0);
-                int invalidCharger = intent.getIntExtra(BatteryManager.EXTRA_INVALID_CHARGER, 0);
+                final int level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, 0);
+                final int plugged = intent.getIntExtra(BatteryManager.EXTRA_PLUGGED, 0);
+                final int invalidCharger = intent.getIntExtra(
+                    BatteryManager.EXTRA_INVALID_CHARGER, 0);
 
-                boolean levelOk = level >= MIN_BATTERY_LEVEL;
-                boolean pluggedOk =
-                    (plugged == BatteryManager.BATTERY_PLUGGED_AC ||
-                     plugged == BatteryManager.BATTERY_PLUGGED_USB) &&
+                final boolean levelOk = level >= MIN_BATTERY_LEVEL;
+                final boolean pluggedOk =
+                    ((plugged & BatteryManager.BATTERY_PLUGGED_ANY) != 0) &&
                      invalidCharger == 0;
 
                 // Update UI elements based on power/battery status
@@ -159,7 +159,14 @@ public class CryptKeeperSettings extends Fragment {
      */
     private boolean runKeyguardConfirmation(int request) {
         // 1.  Confirm that we have a sufficient PIN/Password to continue
-        int quality = new LockPatternUtils(getActivity()).getActivePasswordQuality();
+        LockPatternUtils lockPatternUtils = new LockPatternUtils(getActivity());
+        int quality = lockPatternUtils.getActivePasswordQuality();
+        if (quality == DevicePolicyManager.PASSWORD_QUALITY_BIOMETRIC_WEAK
+            && lockPatternUtils.isLockPasswordEnabled()) {
+            // Use the alternate as the quality. We expect this to be
+            // PASSWORD_QUALITY_SOMETHING(pattern) or PASSWORD_QUALITY_NUMERIC(PIN).
+            quality = lockPatternUtils.getKeyguardStoredPasswordQuality();
+        }
         if (quality < MIN_PASSWORD_QUALITY) {
             return false;
         }
@@ -197,4 +204,3 @@ public class CryptKeeperSettings extends Fragment {
         ((PreferenceActivity) getActivity()).onPreferenceStartFragment(null, preference);
     }
 }
-

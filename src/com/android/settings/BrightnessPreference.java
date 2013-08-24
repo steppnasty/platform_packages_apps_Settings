@@ -60,15 +60,10 @@ public class BrightnessPreference extends SeekBarDialogPreference implements
 
     private static final int SEEK_BAR_RANGE = 10000;
 
-    // Backlight range is from 0 - 255. Need to make sure that user
-    // doesn't set the backlight to 0 and get stuck
-    private int mScreenBrightnessDim =
-	    getContext().getResources().getInteger(com.android.internal.R.integer.config_screenBrightnessDim);
-    private static final int MAXIMUM_BACKLIGHT = android.os.Power.BRIGHTNESS_ON;
-
     private ContentObserver mBrightnessObserver = new ContentObserver(new Handler()) {
         @Override
         public void onChange(boolean selfChange) {
+            mCurBrightness = -1;
             onBrightnessChanged();
         }
     };
@@ -113,17 +108,19 @@ public class BrightnessPreference extends SeekBarDialogPreference implements
         super.onBindDialogView(view);
 
         mSeekBar = getSeekBar(view);
-        mSeekBar.setMax(MAXIMUM_BACKLIGHT - mScreenBrightnessDim);
+        mSeekBar.setMax(SEEK_BAR_RANGE);
         mOldBrightness = getBrightness();
-        mSeekBar.setProgress(mOldBrightness - mScreenBrightnessDim);
+        mSeekBar.setProgress(mOldBrightness);
 
         mCheckBox = (CheckBox)view.findViewById(R.id.automatic_mode);
         if (mAutomaticAvailable) {
             mCheckBox.setOnCheckedChangeListener(this);
             mOldAutomatic = getBrightnessMode(0);
-            mCheckBox.setChecked(mOldAutomatic != 0);
+            mAutomaticMode = mOldAutomatic == Settings.System.SCREEN_BRIGHTNESS_MODE_AUTOMATIC;
+            mCheckBox.setChecked(mAutomaticMode);
+            mSeekBar.setEnabled(!mAutomaticMode || USE_SCREEN_AUTO_BRIGHTNESS_ADJUSTMENT);
         } else {
-            mCheckBox.setVisibility(View.GONE);
+            mSeekBar.setEnabled(true);
         }
         mSeekBar.setOnSeekBarChangeListener(this);
     }
@@ -185,8 +182,11 @@ public class BrightnessPreference extends SeekBarDialogPreference implements
     }
 
     private void onBrightnessModeChanged() {
-        boolean checked = getBrightnessMode(0) != 0;
+        boolean checked = getBrightnessMode(0)
+                == Settings.System.SCREEN_BRIGHTNESS_MODE_AUTOMATIC;
         mCheckBox.setChecked(checked);
+        mSeekBar.setProgress(getBrightness());
+        mSeekBar.setEnabled(!checked || USE_SCREEN_AUTO_BRIGHTNESS_ADJUSTMENT);
     }
 
     @Override
@@ -196,9 +196,7 @@ public class BrightnessPreference extends SeekBarDialogPreference implements
         final ContentResolver resolver = getContext().getContentResolver();
 
         if (positiveResult) {
-            Settings.System.putInt(resolver,
-                    Settings.System.SCREEN_BRIGHTNESS,
-                    mSeekBar.getProgress() + mScreenBrightnessDim);
+            setBrightness(mSeekBar.getProgress(), true);
         } else {
             restoreOldState();
         }
@@ -213,10 +211,9 @@ public class BrightnessPreference extends SeekBarDialogPreference implements
         if (mAutomaticAvailable) {
             setMode(mOldAutomatic);
         }
-        if (!mAutomaticAvailable || mOldAutomatic == 0) {
-            setBrightness(mOldBrightness, false);
-        }
+        setBrightness(mOldBrightness, false);
         mRestoredOldState = true;
+        mCurBrightness = -1;
     }
 
     private void setBrightness(int brightness, boolean write) {
@@ -260,11 +257,7 @@ public class BrightnessPreference extends SeekBarDialogPreference implements
     }
 
     private void setMode(int mode) {
-        if (mode == Settings.System.SCREEN_BRIGHTNESS_MODE_AUTOMATIC) {
-            mSeekBar.setVisibility(View.GONE);
-        } else {
-            mSeekBar.setVisibility(View.VISIBLE);
-        }
+        mAutomaticMode = mode == Settings.System.SCREEN_BRIGHTNESS_MODE_AUTOMATIC;
         Settings.System.putInt(getContext().getContentResolver(),
                 Settings.System.SCREEN_BRIGHTNESS_MODE, mode);
     }
@@ -280,6 +273,7 @@ public class BrightnessPreference extends SeekBarDialogPreference implements
         myState.progress = mSeekBar.getProgress();
         myState.oldAutomatic = mOldAutomatic == 1;
         myState.oldProgress = mOldBrightness;
+        myState.curBrightness = mCurBrightness;
 
         // Restore the old state when the activity or dialog is being paused
         restoreOldState();
@@ -300,6 +294,7 @@ public class BrightnessPreference extends SeekBarDialogPreference implements
         mOldAutomatic = myState.oldAutomatic ? 1 : 0;
         setMode(myState.automatic ? 1 : 0);
         setBrightness(myState.progress, false);
+        mCurBrightness = myState.curBrightness;
     }
 
     private static class SavedState extends BaseSavedState {
@@ -308,6 +303,7 @@ public class BrightnessPreference extends SeekBarDialogPreference implements
         boolean oldAutomatic;
         int progress;
         int oldProgress;
+        int curBrightness;
 
         public SavedState(Parcel source) {
             super(source);
@@ -315,6 +311,7 @@ public class BrightnessPreference extends SeekBarDialogPreference implements
             progress = source.readInt();
             oldAutomatic = source.readInt() == 1;
             oldProgress = source.readInt();
+            curBrightness = source.readInt();
         }
 
         @Override
@@ -324,6 +321,7 @@ public class BrightnessPreference extends SeekBarDialogPreference implements
             dest.writeInt(progress);
             dest.writeInt(oldAutomatic ? 1 : 0);
             dest.writeInt(oldProgress);
+            dest.writeInt(curBrightness);
         }
 
         public SavedState(Parcelable superState) {

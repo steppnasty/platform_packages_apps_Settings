@@ -35,17 +35,20 @@ import static android.net.NetworkTemplate.buildTemplateEthernet;
 import static android.net.NetworkTemplate.buildTemplateMobile3gLower;
 import static android.net.NetworkTemplate.buildTemplateMobile4g;
 import static android.net.NetworkTemplate.buildTemplateMobileAll;
-import static android.net.NetworkTemplate.buildTemplateWifi;
+import static android.net.NetworkTemplate.buildTemplateWifiWildcard;
+import static android.net.TrafficStats.GB_IN_BYTES;
+import static android.net.TrafficStats.MB_IN_BYTES;
 import static android.net.TrafficStats.UID_REMOVED;
 import static android.net.TrafficStats.UID_TETHERING;
+import static android.telephony.TelephonyManager.SIM_STATE_READY;
 import static android.text.format.DateUtils.FORMAT_ABBREV_MONTH;
 import static android.text.format.DateUtils.FORMAT_SHOW_DATE;
-import static android.text.format.Time.TIMEZONE_UTC;
 import static android.view.ViewGroup.LayoutParams.WRAP_CONTENT;
 import static com.android.internal.util.Preconditions.checkNotNull;
 import static com.android.settings.Utils.prepareCustomPreferencesList;
 
 import android.animation.LayoutTransition;
+import android.app.ActivityManager;
 import android.app.AlertDialog;
 import android.app.Dialog;
 import android.app.DialogFragment;
@@ -67,18 +70,25 @@ import android.graphics.drawable.Drawable;
 import android.net.ConnectivityManager;
 import android.net.INetworkPolicyManager;
 import android.net.INetworkStatsService;
+import android.net.INetworkStatsSession;
 import android.net.NetworkPolicy;
 import android.net.NetworkPolicyManager;
 import android.net.NetworkStats;
 import android.net.NetworkStatsHistory;
 import android.net.NetworkTemplate;
+import android.net.TrafficStats;
+import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.INetworkManagementService;
+import android.os.Parcel;
+import android.os.Parcelable;
 import android.os.RemoteException;
 import android.os.ServiceManager;
 import android.os.SystemProperties;
+import android.os.UserHandle;
 import android.preference.Preference;
+import android.preference.PreferenceActivity;
 import android.provider.Settings;
 import android.telephony.TelephonyManager;
 import android.text.TextUtils;
@@ -87,6 +97,7 @@ import android.text.format.Formatter;
 import android.text.format.Time;
 import android.util.Log;
 import android.util.SparseArray;
+import android.util.SparseBooleanArray;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuInflater;
@@ -94,7 +105,6 @@ import android.view.MenuItem;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.view.ViewGroup;
-import android.view.ViewTreeObserver.OnGlobalLayoutListener;
 import android.widget.AdapterView;
 import android.widget.AdapterView.OnItemClickListener;
 import android.widget.AdapterView.OnItemSelectedListener;
@@ -118,10 +128,11 @@ import android.widget.TabHost.TabSpec;
 import android.widget.TabWidget;
 import android.widget.TextView;
 
-import com.android.internal.telephony.Phone;
+import com.android.internal.telephony.PhoneConstants;
 import com.android.settings.drawable.InsetBoundsDrawable;
 import com.android.settings.net.ChartData;
 import com.android.settings.net.ChartDataLoader;
+import com.android.settings.net.DataUsageMeteredSettings;
 import com.android.settings.net.NetworkPolicyEditor;
 import com.android.settings.net.SummaryForAllUidLoader;
 import com.android.settings.net.UidDetail;
@@ -132,7 +143,6 @@ import com.android.settings.widget.PieChartView;
 import com.google.android.collect.Lists;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
@@ -140,8 +150,8 @@ import java.util.Locale;
 import libcore.util.Objects;
 
 /**
- * Panel show data usage history across various networks, including options to
- * inspect based on usage cycle and control through {@link NetworkPolicy}.
+ * Panel showing data usage history across various networks, including options
+ * to inspect based on usage cycle and control through {@link NetworkPolicy}.
  */
 public class DataUsageSummary extends Fragment {
     private static final String TAG = "DataUsage";
@@ -150,7 +160,9 @@ public class DataUsageSummary extends Fragment {
     // TODO: remove this testing code
     private static final boolean TEST_ANIM = false;
     private static final boolean TEST_RADIOS = false;
+
     private static final String TEST_RADIOS_PROP = "test.radios";
+    private static final String TEST_SUBSCRIBER_PROP = "test.subscriberid";
 
     private static final String TAB_3G = "3g";
     private static final String TAB_4G = "4g";
@@ -167,19 +179,18 @@ public class DataUsageSummary extends Fragment {
     private static final String TAG_CONFIRM_RESTRICT = "confirmRestrict";
     private static final String TAG_DENIED_RESTRICT = "deniedRestrict";
     private static final String TAG_CONFIRM_APP_RESTRICT = "confirmAppRestrict";
+    private static final String TAG_CONFIRM_AUTO_SYNC_CHANGE = "confirmAutoSyncChange";
     private static final String TAG_APP_DETAILS = "appDetails";
 
     private static final int LOADER_CHART_DATA = 2;
     private static final int LOADER_SUMMARY = 3;
 
-    private static final long KB_IN_BYTES = 1024;
-    private static final long MB_IN_BYTES = KB_IN_BYTES * 1024;
-    private static final long GB_IN_BYTES = MB_IN_BYTES * 1024;
-
     private INetworkManagementService mNetworkService;
     private INetworkStatsService mStatsService;
-    private INetworkPolicyManager mPolicyService;
+    private NetworkPolicyManager mPolicyManager;
     private ConnectivityManager mConnService;
+
+    private INetworkStatsSession mStatsSession;
 
     private static final String PREF_FILE = "data_usage";
     private static final String PREF_SHOW_WIFI = "show_wifi";
@@ -231,7 +242,7 @@ public class DataUsageSummary extends Fragment {
     private NetworkTemplate mTemplate;
     private ChartData mChartData;
 
-    private int[] mAppDetailUids = null;
+    private AppItem mCurrentApp = null;
 
     private Intent mAppSettingsIntent;
 
@@ -242,6 +253,7 @@ public class DataUsageSummary extends Fragment {
 
     private MenuItem mMenuDataRoaming;
     private MenuItem mMenuRestrictBackground;
+    private MenuItem mMenuAutoSync;
 
     /** Flag used to ignore listeners during binding. */
     private boolean mBinding;
@@ -251,23 +263,28 @@ public class DataUsageSummary extends Fragment {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        final Context context = getActivity();
 
         mNetworkService = INetworkManagementService.Stub.asInterface(
                 ServiceManager.getService(Context.NETWORKMANAGEMENT_SERVICE));
         mStatsService = INetworkStatsService.Stub.asInterface(
                 ServiceManager.getService(Context.NETWORK_STATS_SERVICE));
-        mPolicyService = INetworkPolicyManager.Stub.asInterface(
-                ServiceManager.getService(Context.NETWORK_POLICY_SERVICE));
-        mConnService = (ConnectivityManager) getActivity().getSystemService(
-                Context.CONNECTIVITY_SERVICE);
+        mPolicyManager = NetworkPolicyManager.from(context);
+        mConnService = ConnectivityManager.from(context);
 
         mPrefs = getActivity().getSharedPreferences(PREF_FILE, Context.MODE_PRIVATE);
 
-        mPolicyEditor = new NetworkPolicyEditor(mPolicyService);
+        mPolicyEditor = new NetworkPolicyEditor(mPolicyManager);
         mPolicyEditor.read();
 
         mShowWifi = mPrefs.getBoolean(PREF_SHOW_WIFI, false);
         mShowEthernet = mPrefs.getBoolean(PREF_SHOW_ETHERNET, false);
+
+        // override preferences when no mobile radio
+        if (!hasReadyMobileRadio(context)) {
+            mShowWifi = hasWifiRadio(context);
+            mShowEthernet = hasEthernet(context);
+        }
 
         setHasOptionsMenu(true);
     }
@@ -280,6 +297,12 @@ public class DataUsageSummary extends Fragment {
         final View view = inflater.inflate(R.layout.data_usage_summary, container, false);
 
         mUidDetailProvider = new UidDetailProvider(context);
+
+        try {
+            mStatsSession = mStatsService.openSession();
+        } catch (RemoteException e) {
+            throw new RuntimeException(e);
+        }
 
         mTabHost = (TabHost) view.findViewById(android.R.id.tabhost);
         mTabsContainer = (ViewGroup) view.findViewById(R.id.tabs_container);
@@ -373,9 +396,6 @@ public class DataUsageSummary extends Fragment {
         mUsageSummary = (TextView) mHeader.findViewById(R.id.usage_summary);
         mEmpty = (TextView) mHeader.findViewById(android.R.id.empty);
 
-        // only assign layout transitions once first layout is finished
-        mListView.getViewTreeObserver().addOnGlobalLayoutListener(mFirstLayoutListener);
-
         mAdapter = new DataUsageAdapter(mUidDetailProvider, mInsetSide);
         mListView.setOnItemClickListener(mListListener);
         mListView.setAdapter(mAdapter);
@@ -427,35 +447,54 @@ public class DataUsageSummary extends Fragment {
     public void onPrepareOptionsMenu(Menu menu) {
         final Context context = getActivity();
         final boolean appDetailMode = isAppDetailMode();
+        final boolean isOwner = ActivityManager.getCurrentUser() == UserHandle.USER_OWNER;
 
         mMenuDataRoaming = menu.findItem(R.id.data_usage_menu_roaming);
-        mMenuDataRoaming.setVisible(hasMobileRadio(context) && !appDetailMode);
+        mMenuDataRoaming.setVisible(hasReadyMobileRadio(context) && !appDetailMode);
         mMenuDataRoaming.setChecked(getDataRoaming());
 
         mMenuRestrictBackground = menu.findItem(R.id.data_usage_menu_restrict_background);
-        mMenuRestrictBackground.setVisible(hasMobileRadio(context) && !appDetailMode);
-        mMenuRestrictBackground.setChecked(getRestrictBackground());
+        mMenuRestrictBackground.setVisible(hasReadyMobileRadio(context) && !appDetailMode);
+        mMenuRestrictBackground.setChecked(mPolicyManager.getRestrictBackground());
+        mMenuRestrictBackground.setVisible(isOwner);
+
+        mMenuAutoSync = menu.findItem(R.id.data_usage_menu_auto_sync);
+        mMenuAutoSync.setChecked(ContentResolver.getMasterSyncAutomatically());
+        mMenuAutoSync.setVisible(!appDetailMode);
 
         final MenuItem split4g = menu.findItem(R.id.data_usage_menu_split_4g);
-        split4g.setVisible(hasMobile4gRadio(context) && !appDetailMode);
+        split4g.setVisible(hasReadyMobile4gRadio(context) && isOwner && !appDetailMode);
         split4g.setChecked(isMobilePolicySplit());
 
         final MenuItem showWifi = menu.findItem(R.id.data_usage_menu_show_wifi);
-        if (hasWifiRadio(context) && hasMobileRadio(context)) {
+        if (hasWifiRadio(context) && hasReadyMobileRadio(context)) {
             showWifi.setVisible(!appDetailMode);
             showWifi.setChecked(mShowWifi);
         } else {
             showWifi.setVisible(false);
-            mShowWifi = true;
         }
 
         final MenuItem showEthernet = menu.findItem(R.id.data_usage_menu_show_ethernet);
-        if (hasEthernet(context) && hasMobileRadio(context)) {
+        if (hasEthernet(context) && hasReadyMobileRadio(context)) {
             showEthernet.setVisible(!appDetailMode);
             showEthernet.setChecked(mShowEthernet);
         } else {
             showEthernet.setVisible(false);
-            mShowEthernet = true;
+        }
+
+        final MenuItem metered = menu.findItem(R.id.data_usage_menu_metered);
+        if (hasReadyMobileRadio(context) || hasWifiRadio(context)) {
+            metered.setVisible(!appDetailMode);
+        } else {
+            metered.setVisible(false);
+        }
+
+        final MenuItem help = menu.findItem(R.id.data_usage_menu_help);
+        String helpUrl;
+        if (!TextUtils.isEmpty(helpUrl = getResources().getString(R.string.help_url_data_usage))) {
+            HelpUtils.prepareHelpMenuItem(context, help, helpUrl);
+        } else {
+            help.setVisible(false);
         }
     }
 
@@ -475,11 +514,7 @@ public class DataUsageSummary extends Fragment {
             case R.id.data_usage_menu_restrict_background: {
                 final boolean restrictBackground = !item.isChecked();
                 if (restrictBackground) {
-                    if (hasLimitedNetworks()) {
-                        ConfirmRestrictFragment.show(this);
-                    } else {
-                        DeniedRestrictFragment.show(this);
-                    }
+                    ConfirmRestrictFragment.show(this);
                 } else {
                     // no confirmation to drop restriction
                     setRestrictBackground(false);
@@ -507,50 +542,59 @@ public class DataUsageSummary extends Fragment {
                 updateTabs();
                 return true;
             }
+            case R.id.data_usage_menu_metered: {
+                final PreferenceActivity activity = (PreferenceActivity) getActivity();
+                activity.startPreferencePanel(DataUsageMeteredSettings.class.getCanonicalName(), null,
+                        R.string.data_usage_metered_title, null, this, 0);
+                return true;
+            }
+            case R.id.data_usage_menu_auto_sync: {
+                if (ActivityManager.isUserAMonkey()) {
+                    Log.d("SyncState", "ignoring monkey's attempt to flip global sync state");
+                } else {
+                    ConfirmAutoSyncChangeFragment.show(this, !item.isChecked());
+                }
+                return true;
+            }
         }
         return false;
     }
 
     @Override
-    public void onDestroyView() {
-        super.onDestroyView();
-
+    public void onDestroy() {
         mDataEnabledView = null;
         mDisableAtLimitView = null;
 
         mUidDetailProvider.clearCache();
         mUidDetailProvider = null;
-    }
 
-    @Override
-    public void onDestroy() {
+        TrafficStats.closeQuietly(mStatsSession);
+
         if (this.isRemoving()) {
             getFragmentManager()
                     .popBackStack(TAG_APP_DETAILS, FragmentManager.POP_BACK_STACK_INCLUSIVE);
         }
+
         super.onDestroy();
     }
 
     /**
-     * Listener to setup {@link LayoutTransition} after first layout pass.
+     * Build and assign {@link LayoutTransition} to various containers. Should
+     * only be assigned after initial layout is complete.
      */
-    private OnGlobalLayoutListener mFirstLayoutListener = new OnGlobalLayoutListener() {
-        /** {@inheritDoc} */
-        public void onGlobalLayout() {
-            mListView.getViewTreeObserver().removeGlobalOnLayoutListener(mFirstLayoutListener);
+    private void ensureLayoutTransitions() {
+        // skip when already setup
+        if (mChart.getLayoutTransition() != null) return;
 
-            mTabsContainer.setLayoutTransition(buildLayoutTransition());
-            mHeader.setLayoutTransition(buildLayoutTransition());
-            mNetworkSwitchesContainer.setLayoutTransition(buildLayoutTransition());
+        mTabsContainer.setLayoutTransition(buildLayoutTransition());
+        mHeader.setLayoutTransition(buildLayoutTransition());
+        mNetworkSwitchesContainer.setLayoutTransition(buildLayoutTransition());
 
-            final LayoutTransition chartTransition = buildLayoutTransition();
-            chartTransition.setStartDelay(LayoutTransition.APPEARING, 0);
-            chartTransition.setStartDelay(LayoutTransition.DISAPPEARING, 0);
-            chartTransition.setAnimator(LayoutTransition.APPEARING, null);
-            chartTransition.setAnimator(LayoutTransition.DISAPPEARING, null);
-            mChart.setLayoutTransition(chartTransition);
-        }
-    };
+        final LayoutTransition chartTransition = buildLayoutTransition();
+        chartTransition.disableTransitionType(LayoutTransition.APPEARING);
+        chartTransition.disableTransitionType(LayoutTransition.DISAPPEARING);
+        mChart.setLayoutTransition(chartTransition);
+    }
 
     private static LayoutTransition buildLayoutTransition() {
         final LayoutTransition transition = new LayoutTransition();
@@ -571,10 +615,10 @@ public class DataUsageSummary extends Fragment {
         mTabHost.clearAllTabs();
 
         final boolean mobileSplit = isMobilePolicySplit();
-        if (mobileSplit && hasMobile4gRadio(context)) {
+        if (mobileSplit && hasReadyMobile4gRadio(context)) {
             mTabHost.addTab(buildTabSpec(TAB_3G, R.string.data_usage_tab_3g));
             mTabHost.addTab(buildTabSpec(TAB_4G, R.string.data_usage_tab_4g));
-        } else if (hasMobileRadio(context)) {
+        } else if (hasReadyMobileRadio(context)) {
             mTabHost.addTab(buildTabSpec(TAB_MOBILE, R.string.data_usage_tab_mobile));
         }
         if (mShowWifi && hasWifiRadio(context)) {
@@ -584,6 +628,7 @@ public class DataUsageSummary extends Fragment {
             mTabHost.addTab(buildTabSpec(TAB_ETHERNET, R.string.data_usage_tab_ethernet));
         }
 
+        final boolean noTabs = mTabWidget.getTabCount() == 0;
         final boolean multipleTabs = mTabWidget.getTabCount() > 1;
         mTabWidget.setVisibility(multipleTabs ? View.VISIBLE : View.GONE);
         if (mIntentTab != null) {
@@ -594,6 +639,9 @@ public class DataUsageSummary extends Fragment {
                 mTabHost.setCurrentTabByTag(mIntentTab);
             }
             mIntentTab = null;
+        } else if (noTabs) {
+            // no usable tabs, so hide body
+            updateBody();
         } else {
             // already hit updateBody() when added; ignore
         }
@@ -603,7 +651,7 @@ public class DataUsageSummary extends Fragment {
      * Factory that provide empty {@link View} to make {@link TabHost} happy.
      */
     private TabContentFactory mEmptyTabContent = new TabContentFactory() {
-        /** {@inheritDoc} */
+        @Override
         public View createTabContent(String tag) {
             return new View(mTabHost.getContext());
         }
@@ -618,7 +666,7 @@ public class DataUsageSummary extends Fragment {
     }
 
     private OnTabChangeListener mTabListener = new OnTabChangeListener() {
-        /** {@inheritDoc} */
+        @Override
         public void onTabChanged(String tabId) {
             // user changed tab; update body
             updateBody();
@@ -636,6 +684,7 @@ public class DataUsageSummary extends Fragment {
 
         final Context context = getActivity();
         final String currentTab = mTabHost.getCurrentTabTag();
+        final boolean isOwner = ActivityManager.getCurrentUser() == UserHandle.USER_OWNER;
 
         if (currentTab == null) {
             Log.w(TAG, "no tab selected; hiding body");
@@ -650,7 +699,10 @@ public class DataUsageSummary extends Fragment {
 
         if (LOGD) Log.d(TAG, "updateBody() with currentTab=" + currentTab);
 
-        mDataEnabledView.setVisibility(View.VISIBLE);
+        mDataEnabledView.setVisibility(isOwner ? View.VISIBLE : View.GONE);
+
+        // TODO: remove mobile tabs when SIM isn't ready
+        final TelephonyManager tele = TelephonyManager.from(context);
 
         if (TAB_MOBILE.equals(currentTab)) {
             setPreferenceTitle(mDataEnabledView, R.string.data_usage_enable_mobile);
@@ -673,7 +725,7 @@ public class DataUsageSummary extends Fragment {
             // wifi doesn't have any controls
             mDataEnabledView.setVisibility(View.GONE);
             mDisableAtLimitView.setVisibility(View.GONE);
-            mTemplate = buildTemplateWifi();
+            mTemplate = buildTemplateWifiWildcard();
 
         } else if (TAB_ETHERNET.equals(currentTab)) {
             // ethernet doesn't have any controls
@@ -689,7 +741,7 @@ public class DataUsageSummary extends Fragment {
         // TODO: consider chaining two loaders together instead of reloading
         // network history when showing app detail.
         getLoaderManager().restartLoader(LOADER_CHART_DATA,
-                ChartDataLoader.buildArgs(mTemplate, mAppDetailUids), mChartDataCallbacks);
+                ChartDataLoader.buildArgs(mTemplate, mCurrentApp), mChartDataCallbacks);
 
         // detail mode can change visible menus, invalidate
         getActivity().invalidateOptionsMenu();
@@ -698,15 +750,11 @@ public class DataUsageSummary extends Fragment {
     }
 
     private boolean isAppDetailMode() {
-        return mAppDetailUids != null;
-    }
-
-    private int getAppDetailPrimaryUid() {
-        return mAppDetailUids[0];
+        return mCurrentApp != null;
     }
 
     /**
-     * Update UID details panels to match {@link #mAppDetailUids}, showing or
+     * Update UID details panels to match {@link #mCurrentApp}, showing or
      * hiding them depending on {@link #isAppDetailMode()}.
      */
     private void updateAppDetail() {
@@ -730,8 +778,8 @@ public class DataUsageSummary extends Fragment {
         mChart.bindNetworkPolicy(null);
 
         // show icon and all labels appearing under this app
-        final int primaryUid = getAppDetailPrimaryUid();
-        final UidDetail detail = mUidDetailProvider.getUidDetail(primaryUid, true);
+        final int uid = mCurrentApp.key;
+        final UidDetail detail = mUidDetailProvider.getUidDetail(uid, true);
         mAppIcon.setImageDrawable(detail.icon);
 
         mAppTitles.removeAllViews();
@@ -744,34 +792,36 @@ public class DataUsageSummary extends Fragment {
         }
 
         // enable settings button when package provides it
-        // TODO: target torwards entire UID instead of just first package
-        final String[] packageNames = pm.getPackagesForUid(primaryUid);
+        final String[] packageNames = pm.getPackagesForUid(uid);
         if (packageNames != null && packageNames.length > 0) {
             mAppSettingsIntent = new Intent(Intent.ACTION_MANAGE_NETWORK_USAGE);
-            mAppSettingsIntent.setPackage(packageNames[0]);
             mAppSettingsIntent.addCategory(Intent.CATEGORY_DEFAULT);
 
-            final boolean matchFound = pm.resolveActivity(mAppSettingsIntent, 0) != null;
+            // Search for match across all packages
+            boolean matchFound = false;
+            for (String packageName : packageNames) {
+                mAppSettingsIntent.setPackage(packageName);
+                if (pm.resolveActivity(mAppSettingsIntent, 0) != null) {
+                    matchFound = true;
+                    break;
+                }
+            }
+
             mAppSettings.setEnabled(matchFound);
+            mAppSettings.setVisibility(View.VISIBLE);
 
         } else {
             mAppSettingsIntent = null;
-            mAppSettings.setEnabled(false);
+            mAppSettings.setVisibility(View.GONE);
         }
 
         updateDetailData();
 
-        if (NetworkPolicyManager.isUidValidForPolicy(context, primaryUid)
-                && !getRestrictBackground() && isBandwidthControlEnabled()
-                && hasMobileRadio(context)) {
+        if (UserHandle.isApp(uid) && !mPolicyManager.getRestrictBackground()
+                && isBandwidthControlEnabled() && hasReadyMobileRadio(context)) {
             setPreferenceTitle(mAppRestrictView, R.string.data_usage_app_restrict_background);
-            if (hasLimitedNetworks()) {
-                setPreferenceSummary(mAppRestrictView,
-                        getString(R.string.data_usage_app_restrict_background_summary));
-            } else {
-                setPreferenceSummary(mAppRestrictView,
-                        getString(R.string.data_usage_app_restrict_background_summary_disabled));
-            }
+            setPreferenceSummary(mAppRestrictView,
+                    getString(R.string.data_usage_app_restrict_background_summary));
 
             mAppRestrictView.setVisibility(View.VISIBLE);
             mAppRestrict.setChecked(getAppRestrictBackground());
@@ -816,7 +866,8 @@ public class DataUsageSummary extends Fragment {
     }
 
     private boolean isNetworkPolicyModifiable(NetworkPolicy policy) {
-        return policy != null && isBandwidthControlEnabled() && mDataEnabled.isChecked();
+        return policy != null && isBandwidthControlEnabled() && mDataEnabled.isChecked()
+                && ActivityManager.getCurrentUser() == UserHandle.USER_OWNER;
     }
 
     private boolean isBandwidthControlEnabled() {
@@ -841,48 +892,22 @@ public class DataUsageSummary extends Fragment {
         mMenuDataRoaming.setChecked(enabled);
     }
 
-    private boolean getRestrictBackground() {
-        try {
-            return mPolicyService.getRestrictBackground();
-        } catch (RemoteException e) {
-            Log.w(TAG, "problem talking with policy service: " + e);
-            return false;
-        }
-    }
-
-    private void setRestrictBackground(boolean restrictBackground) {
-        if (LOGD) Log.d(TAG, "setRestrictBackground()");
-        try {
-            mPolicyService.setRestrictBackground(restrictBackground);
-            mMenuRestrictBackground.setChecked(restrictBackground);
-        } catch (RemoteException e) {
-            Log.w(TAG, "problem talking with policy service: " + e);
-        }
+    public void setRestrictBackground(boolean restrictBackground) {
+        mPolicyManager.setRestrictBackground(restrictBackground);
+        mMenuRestrictBackground.setChecked(restrictBackground);
     }
 
     private boolean getAppRestrictBackground() {
-        final int primaryUid = getAppDetailPrimaryUid();
-        final int uidPolicy;
-        try {
-            uidPolicy = mPolicyService.getUidPolicy(primaryUid);
-        } catch (RemoteException e) {
-            // since we can't do much without policy, we bail hard.
-            throw new RuntimeException("problem reading network policy", e);
-        }
-
+        final int uid = mCurrentApp.key;
+        final int uidPolicy = mPolicyManager.getUidPolicy(uid);
         return (uidPolicy & POLICY_REJECT_METERED_BACKGROUND) != 0;
     }
 
     private void setAppRestrictBackground(boolean restrictBackground) {
         if (LOGD) Log.d(TAG, "setAppRestrictBackground()");
-        final int primaryUid = getAppDetailPrimaryUid();
-        try {
-            mPolicyService.setUidPolicy(primaryUid,
-                    restrictBackground ? POLICY_REJECT_METERED_BACKGROUND : POLICY_NONE);
-        } catch (RemoteException e) {
-            throw new RuntimeException("unable to save policy", e);
-        }
-
+        final int uid = mCurrentApp.key;
+        mPolicyManager.setUidPolicy(
+                uid, restrictBackground ? POLICY_REJECT_METERED_BACKGROUND : POLICY_NONE);
         mAppRestrict.setChecked(restrictBackground);
     }
 
@@ -998,7 +1023,7 @@ public class DataUsageSummary extends Fragment {
     }
 
     private OnCheckedChangeListener mDataEnabledListener = new OnCheckedChangeListener() {
-        /** {@inheritDoc} */
+        @Override
         public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
             if (mBinding) return;
 
@@ -1019,7 +1044,7 @@ public class DataUsageSummary extends Fragment {
     };
 
     private View.OnClickListener mDisableAtLimitListener = new View.OnClickListener() {
-        /** {@inheritDoc} */
+        @Override
         public void onClick(View v) {
             final boolean disableAtLimit = !mDisableAtLimit.isChecked();
             if (disableAtLimit) {
@@ -1033,21 +1058,15 @@ public class DataUsageSummary extends Fragment {
     };
 
     private View.OnClickListener mAppRestrictListener = new View.OnClickListener() {
-        /** {@inheritDoc} */
+        @Override
         public void onClick(View v) {
             final boolean restrictBackground = !mAppRestrict.isChecked();
 
             if (restrictBackground) {
-                if (hasLimitedNetworks()) {
-                    // enabling restriction; show confirmation dialog which
-                    // eventually calls setRestrictBackground() once user
-                    // confirms.
-                    ConfirmAppRestrictFragment.show(DataUsageSummary.this);
-                } else {
-                    // no limited networks; show dialog to guide user towards
-                    // setting a network limit. doesn't mutate restrict state.
-                    DeniedRestrictFragment.show(DataUsageSummary.this);
-                }
+                // enabling restriction; show confirmation dialog which
+                // eventually calls setRestrictBackground() once user
+                // confirms.
+                ConfirmAppRestrictFragment.show(DataUsageSummary.this);
             } else {
                 setAppRestrictBackground(false);
             }
@@ -1055,25 +1074,31 @@ public class DataUsageSummary extends Fragment {
     };
 
     private OnClickListener mAppSettingsListener = new OnClickListener() {
-        /** {@inheritDoc} */
+        @Override
         public void onClick(View v) {
+            if (!isAdded()) return;
+
             // TODO: target torwards entire UID instead of just first package
             startActivity(mAppSettingsIntent);
         }
     };
 
     private OnItemClickListener mListListener = new OnItemClickListener() {
-        /** {@inheritDoc} */
+        @Override
         public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
             final Context context = view.getContext();
-            final AppUsageItem app = (AppUsageItem) parent.getItemAtPosition(position);
-            final UidDetail detail = mUidDetailProvider.getUidDetail(app.uids[0], true);
-            AppDetailsFragment.show(DataUsageSummary.this, app.uids, detail.label);
+            final AppItem app = (AppItem) parent.getItemAtPosition(position);
+
+            // TODO: sigh, remove this hack once we understand 6450986
+            if (mUidDetailProvider == null || app == null) return;
+
+            final UidDetail detail = mUidDetailProvider.getUidDetail(app.key, true);
+            AppDetailsFragment.show(DataUsageSummary.this, app, detail.label);
         }
     };
 
     private OnItemSelectedListener mCycleListener = new OnItemSelectedListener() {
-        /** {@inheritDoc} */
+        @Override
         public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
             final CycleItem cycle = (CycleItem) parent.getItemAtPosition(position);
             if (cycle instanceof CycleChangeItem) {
@@ -1098,7 +1123,7 @@ public class DataUsageSummary extends Fragment {
             }
         }
 
-        /** {@inheritDoc} */
+        @Override
         public void onNothingSelected(AdapterView<?> parent) {
             // ignored
         }
@@ -1155,20 +1180,30 @@ public class DataUsageSummary extends Fragment {
 
         final long totalBytes = entry != null ? entry.rxBytes + entry.txBytes : 0;
         final String totalPhrase = Formatter.formatFileSize(context, totalBytes);
-        final String rangePhrase = formatDateRange(context, start, end, false);
+        final String rangePhrase = formatDateRange(context, start, end);
 
-        mUsageSummary.setText(
-                getString(R.string.data_usage_total_during_range, totalPhrase, rangePhrase));
+        final int summaryRes;
+        if (TAB_MOBILE.equals(mCurrentTab) || TAB_3G.equals(mCurrentApp)
+                || TAB_4G.equals(mCurrentApp)) {
+            summaryRes = R.string.data_usage_total_during_range_mobile;
+        } else {
+            summaryRes = R.string.data_usage_total_during_range;
+        }
+
+        mUsageSummary.setText(getString(summaryRes, totalPhrase, rangePhrase));
+
+        // initial layout is finished above, ensure we have transitions
+        ensureLayoutTransitions();
     }
 
     private final LoaderCallbacks<ChartData> mChartDataCallbacks = new LoaderCallbacks<
             ChartData>() {
-        /** {@inheritDoc} */
+        @Override
         public Loader<ChartData> onCreateLoader(int id, Bundle args) {
-            return new ChartDataLoader(getActivity(), mStatsService, args);
+            return new ChartDataLoader(getActivity(), mStatsSession, args);
         }
 
-        /** {@inheritDoc} */
+        @Override
         public void onLoadFinished(Loader<ChartData> loader, ChartData data) {
             mChartData = data;
             mChart.bindNetworkStats(mChartData.network);
@@ -1184,7 +1219,7 @@ public class DataUsageSummary extends Fragment {
             }
         }
 
-        /** {@inheritDoc} */
+        @Override
         public void onLoaderReset(Loader<ChartData> loader) {
             mChartData = null;
             mChart.bindNetworkStats(null);
@@ -1194,20 +1229,22 @@ public class DataUsageSummary extends Fragment {
 
     private final LoaderCallbacks<NetworkStats> mSummaryCallbacks = new LoaderCallbacks<
             NetworkStats>() {
-        /** {@inheritDoc} */
+        @Override
         public Loader<NetworkStats> onCreateLoader(int id, Bundle args) {
-            return new SummaryForAllUidLoader(getActivity(), mStatsService, args);
+            return new SummaryForAllUidLoader(getActivity(), mStatsSession, args);
         }
 
-        /** {@inheritDoc} */
+        @Override
         public void onLoadFinished(Loader<NetworkStats> loader, NetworkStats data) {
-            mAdapter.bindStats(data);
+            final int[] restrictedUids = mPolicyManager.getUidsWithPolicy(
+                    POLICY_REJECT_METERED_BACKGROUND);
+            mAdapter.bindStats(data, restrictedUids);
             updateEmptyVisible();
         }
 
-        /** {@inheritDoc} */
+        @Override
         public void onLoaderReset(Loader<NetworkStats> loader) {
-            mAdapter.bindStats(null);
+            mAdapter.bindStats(null, new int[0]);
             updateEmptyVisible();
         }
 
@@ -1217,50 +1254,55 @@ public class DataUsageSummary extends Fragment {
         }
     };
 
+    @Deprecated
     private boolean isMobilePolicySplit() {
         final Context context = getActivity();
-        if (hasMobileRadio(context)) {
-            final String subscriberId = getActiveSubscriberId(context);
-            return mPolicyEditor.isMobilePolicySplit(subscriberId);
+        if (hasReadyMobileRadio(context)) {
+            final TelephonyManager tele = TelephonyManager.from(context);
+            return mPolicyEditor.isMobilePolicySplit(getActiveSubscriberId(context));
         } else {
             return false;
         }
     }
 
+    @Deprecated
     private void setMobilePolicySplit(boolean split) {
-        final String subscriberId = getActiveSubscriberId(getActivity());
-        mPolicyEditor.setMobilePolicySplit(subscriberId, split);
+        final Context context = getActivity();
+        if (hasReadyMobileRadio(context)) {
+            final TelephonyManager tele = TelephonyManager.from(context);
+            mPolicyEditor.setMobilePolicySplit(getActiveSubscriberId(context), split);
+        }
     }
 
     private static String getActiveSubscriberId(Context context) {
-        final TelephonyManager telephony = (TelephonyManager) context.getSystemService(
-                Context.TELEPHONY_SERVICE);
-        return telephony.getSubscriberId();
+        final TelephonyManager tele = TelephonyManager.from(context);
+        final String actualSubscriberId = tele.getSubscriberId();
+        return SystemProperties.get(TEST_SUBSCRIBER_PROP, actualSubscriberId);
     }
 
     private DataUsageChartListener mChartListener = new DataUsageChartListener() {
-        /** {@inheritDoc} */
+        @Override
         public void onInspectRangeChanged() {
             if (LOGD) Log.d(TAG, "onInspectRangeChanged()");
             updateDetailData();
         }
 
-        /** {@inheritDoc} */
+        @Override
         public void onWarningChanged() {
             setPolicyWarningBytes(mChart.getWarningBytes());
         }
 
-        /** {@inheritDoc} */
+        @Override
         public void onLimitChanged() {
             setPolicyLimitBytes(mChart.getLimitBytes());
         }
 
-        /** {@inheritDoc} */
+        @Override
         public void requestWarningEdit() {
             WarningEditorFragment.show(DataUsageSummary.this);
         }
 
-        /** {@inheritDoc} */
+        @Override
         public void requestLimitEdit() {
             LimitEditorFragment.show(DataUsageSummary.this);
         }
@@ -1279,7 +1321,7 @@ public class DataUsageSummary extends Fragment {
         }
 
         public CycleItem(Context context, long start, long end) {
-            this.label = formatDateRange(context, start, end, true);
+            this.label = formatDateRange(context, start, end);
             this.start = start;
             this.end = end;
         }
@@ -1298,7 +1340,7 @@ public class DataUsageSummary extends Fragment {
             return false;
         }
 
-        /** {@inheritDoc} */
+        @Override
         public int compareTo(CycleItem another) {
             return Long.compare(start, another.start);
         }
@@ -1308,14 +1350,13 @@ public class DataUsageSummary extends Fragment {
     private static final java.util.Formatter sFormatter = new java.util.Formatter(
             sBuilder, Locale.getDefault());
 
-    public static String formatDateRange(Context context, long start, long end, boolean utcTime) {
+    public static String formatDateRange(Context context, long start, long end) {
         final int flags = FORMAT_SHOW_DATE | FORMAT_ABBREV_MONTH;
-        final String timezone = utcTime ? TIMEZONE_UTC : null;
 
         synchronized (sBuilder) {
             sBuilder.setLength(0);
-            return DateUtils
-                    .formatDateRange(context, sFormatter, start, end, flags, timezone).toString();
+            return DateUtils.formatDateRange(context, sFormatter, start, end, flags, null)
+                    .toString();
         }
     }
 
@@ -1378,25 +1419,54 @@ public class DataUsageSummary extends Fragment {
         }
     }
 
-    private static class AppUsageItem implements Comparable<AppUsageItem> {
-        public int[] uids;
+    public static class AppItem implements Comparable<AppItem>, Parcelable {
+        public final int key;
+        public boolean restricted;
+        public SparseBooleanArray uids = new SparseBooleanArray();
         public long total;
 
-        public AppUsageItem(int uid) {
-            uids = new int[] { uid };
+        public AppItem(int key) {
+            this.key = key;
+        }
+
+        public AppItem(Parcel parcel) {
+            key = parcel.readInt();
+            uids = parcel.readSparseBooleanArray();
+            total = parcel.readLong();
         }
 
         public void addUid(int uid) {
-            if (contains(uids, uid)) return;
-            final int length = uids.length;
-            uids = Arrays.copyOf(uids, length + 1);
-            uids[length] = uid;
+            uids.put(uid, true);
         }
 
-        /** {@inheritDoc} */
-        public int compareTo(AppUsageItem another) {
+        @Override
+        public void writeToParcel(Parcel dest, int flags) {
+            dest.writeInt(key);
+            dest.writeSparseBooleanArray(uids);
+            dest.writeLong(total);
+        }
+
+        @Override
+        public int describeContents() {
+            return 0;
+        }
+
+        @Override
+        public int compareTo(AppItem another) {
             return Long.compare(another.total, total);
         }
+
+        public static final Creator<AppItem> CREATOR = new Creator<AppItem>() {
+            @Override
+            public AppItem createFromParcel(Parcel in) {
+                return new AppItem(in);
+            }
+
+            @Override
+            public AppItem[] newArray(int size) {
+                return new AppItem[size];
+            }
+        };
     }
 
     /**
@@ -1406,7 +1476,7 @@ public class DataUsageSummary extends Fragment {
         private final UidDetailProvider mProvider;
         private final int mInsetSide;
 
-        private ArrayList<AppUsageItem> mItems = Lists.newArrayList();
+        private ArrayList<AppItem> mItems = Lists.newArrayList();
         private long mLargest;
 
         public DataUsageAdapter(UidDetailProvider provider, int insetSide) {
@@ -1417,37 +1487,54 @@ public class DataUsageSummary extends Fragment {
         /**
          * Bind the given {@link NetworkStats}, or {@code null} to clear list.
          */
-        public void bindStats(NetworkStats stats) {
+        public void bindStats(NetworkStats stats, int[] restrictedUids) {
             mItems.clear();
 
-            final AppUsageItem systemItem = new AppUsageItem(android.os.Process.SYSTEM_UID);
-            final SparseArray<AppUsageItem> knownUids = new SparseArray<AppUsageItem>();
+            final int currentUserId = ActivityManager.getCurrentUser();
+            final SparseArray<AppItem> knownItems = new SparseArray<AppItem>();
 
             NetworkStats.Entry entry = null;
             final int size = stats != null ? stats.size() : 0;
             for (int i = 0; i < size; i++) {
                 entry = stats.getValues(i, entry);
 
+                // Decide how to collapse items together
                 final int uid = entry.uid;
-                final boolean isApp = uid >= android.os.Process.FIRST_APPLICATION_UID
-                        && uid <= android.os.Process.LAST_APPLICATION_UID;
-                if (isApp || uid == UID_REMOVED || uid == UID_TETHERING) {
-                    AppUsageItem item = knownUids.get(uid);
-                    if (item == null) {
-                        item = new AppUsageItem(uid);
-                        knownUids.put(uid, item);
-                        mItems.add(item);
+                final int collapseKey;
+                if (UserHandle.isApp(uid)) {
+                    if (UserHandle.getUserId(uid) == currentUserId) {
+                        collapseKey = uid;
+                    } else {
+                        collapseKey = UidDetailProvider.buildKeyForUser(UserHandle.getUserId(uid));
                     }
-
-                    item.total += entry.rxBytes + entry.txBytes;
+                } else if (uid == UID_REMOVED || uid == UID_TETHERING) {
+                    collapseKey = uid;
                 } else {
-                    systemItem.total += entry.rxBytes + entry.txBytes;
-                    systemItem.addUid(uid);
+                    collapseKey = android.os.Process.SYSTEM_UID;
                 }
+
+                AppItem item = knownItems.get(collapseKey);
+                if (item == null) {
+                    item = new AppItem(collapseKey);
+                    mItems.add(item);
+                    knownItems.put(item.key, item);
+                }
+                item.addUid(uid);
+                item.total += entry.rxBytes + entry.txBytes;
             }
 
-            if (systemItem.total > 0) {
-                mItems.add(systemItem);
+            for (int uid : restrictedUids) {
+                // Only splice in restricted state for current user
+                if (UserHandle.getUserId(uid) != currentUserId) continue;
+
+                AppItem item = knownItems.get(uid);
+                if (item == null) {
+                    item = new AppItem(uid);
+                    item.total = -1;
+                    mItems.add(item);
+                    knownItems.put(item.key, item);
+                }
+                item.restricted = true;
             }
 
             Collections.sort(mItems);
@@ -1467,7 +1554,7 @@ public class DataUsageSummary extends Fragment {
 
         @Override
         public long getItemId(int position) {
-            return mItems.get(position).uids[0];
+            return mItems.get(position).key;
         }
 
         @Override
@@ -1488,10 +1575,16 @@ public class DataUsageSummary extends Fragment {
                     android.R.id.progress);
 
             // kick off async load of app details
-            final AppUsageItem item = mItems.get(position);
+            final AppItem item = mItems.get(position);
             UidDetailTask.bindView(mProvider, item, convertView);
 
-            text1.setText(Formatter.formatFileSize(context, item.total));
+            if (item.restricted && item.total <= 0) {
+                text1.setText(R.string.data_usage_app_restricted);
+                progress.setVisibility(View.GONE);
+            } else {
+                text1.setText(Formatter.formatFileSize(context, item.total));
+                progress.setVisibility(View.VISIBLE);
+            }
 
             final int percentTotal = mLargest != 0 ? (int) (item.total * 100 / mLargest) : 0;
             progress.setProgress(percentTotal);
@@ -1505,13 +1598,13 @@ public class DataUsageSummary extends Fragment {
      * {@link DataUsageSummary}.
      */
     public static class AppDetailsFragment extends Fragment {
-        private static final String EXTRA_UIDS = "uids";
+        private static final String EXTRA_APP = "app";
 
-        public static void show(DataUsageSummary parent, int[] uids, CharSequence label) {
+        public static void show(DataUsageSummary parent, AppItem app, CharSequence label) {
             if (!parent.isAdded()) return;
 
             final Bundle args = new Bundle();
-            args.putIntArray(EXTRA_UIDS, uids);
+            args.putParcelable(EXTRA_APP, app);
 
             final AppDetailsFragment fragment = new AppDetailsFragment();
             fragment.setArguments(args);
@@ -1520,14 +1613,14 @@ public class DataUsageSummary extends Fragment {
             ft.add(fragment, TAG_APP_DETAILS);
             ft.addToBackStack(TAG_APP_DETAILS);
             ft.setBreadCrumbTitle(label);
-            ft.commit();
+            ft.commitAllowingStateLoss();
         }
 
         @Override
         public void onStart() {
             super.onStart();
             final DataUsageSummary target = (DataUsageSummary) getTargetFragment();
-            target.mAppDetailUids = getArguments().getIntArray(EXTRA_UIDS);
+            target.mCurrentApp = getArguments().getParcelable(EXTRA_APP);
             target.updateBody();
         }
 
@@ -1535,7 +1628,7 @@ public class DataUsageSummary extends Fragment {
         public void onStop() {
             super.onStop();
             final DataUsageSummary target = (DataUsageSummary) getTargetFragment();
-            target.mAppDetailUids = null;
+            target.mCurrentApp = null;
             target.updateBody();
         }
     }
@@ -1553,22 +1646,21 @@ public class DataUsageSummary extends Fragment {
 
             final Resources res = parent.getResources();
             final CharSequence message;
+            final long minLimitBytes = (long) (
+                    parent.mPolicyEditor.getPolicy(parent.mTemplate).warningBytes * 1.2f);
             final long limitBytes;
 
             // TODO: customize default limits based on network template
             final String currentTab = parent.mCurrentTab;
             if (TAB_3G.equals(currentTab)) {
-                message = res.getString(R.string.data_usage_tab_3g);
-                limitBytes = 5 * GB_IN_BYTES;
+                message = res.getString(R.string.data_usage_limit_dialog_mobile);
+                limitBytes = Math.max(5 * GB_IN_BYTES, minLimitBytes);
             } else if (TAB_4G.equals(currentTab)) {
-                message = res.getString(R.string.data_usage_tab_4g);
-                limitBytes = 5 * GB_IN_BYTES;
+                message = res.getString(R.string.data_usage_limit_dialog_mobile);
+                limitBytes = Math.max(5 * GB_IN_BYTES, minLimitBytes);
             } else if (TAB_MOBILE.equals(currentTab)) {
-                message = res.getString(R.string.data_usage_list_mobile);
-                limitBytes = 5 * GB_IN_BYTES;
-            } else if (TAB_WIFI.equals(currentTab)) {
-                message = res.getString(R.string.data_usage_tab_wifi);
-                limitBytes = 5 * GB_IN_BYTES;
+                message = res.getString(R.string.data_usage_limit_dialog_mobile);
+                limitBytes = Math.max(5 * GB_IN_BYTES, minLimitBytes);
             } else {
                 throw new IllegalArgumentException("unknown current tab: " + currentTab);
             }
@@ -1595,6 +1687,7 @@ public class DataUsageSummary extends Fragment {
             builder.setMessage(message);
 
             builder.setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
+                @Override
                 public void onClick(DialogInterface dialog, int which) {
                     final DataUsageSummary target = (DataUsageSummary) getTargetFragment();
                     if (target != null) {
@@ -1650,6 +1743,7 @@ public class DataUsageSummary extends Fragment {
 
             builder.setPositiveButton(R.string.data_usage_cycle_editor_positive,
                     new DialogInterface.OnClickListener() {
+                        @Override
                         public void onClick(DialogInterface dialog, int which) {
                             final int cycleDay = cycleDayPicker.getValue();
                             final String cycleTimezone = new Time().timezone;
@@ -1710,6 +1804,7 @@ public class DataUsageSummary extends Fragment {
 
             builder.setPositiveButton(R.string.data_usage_cycle_editor_positive,
                     new DialogInterface.OnClickListener() {
+                        @Override
                         public void onClick(DialogInterface dialog, int which) {
                             // clear focus to finish pending text edits
                             bytesPicker.clearFocus();
@@ -1772,6 +1867,7 @@ public class DataUsageSummary extends Fragment {
 
             builder.setPositiveButton(R.string.data_usage_cycle_editor_positive,
                     new DialogInterface.OnClickListener() {
+                        @Override
                         public void onClick(DialogInterface dialog, int which) {
                             // clear focus to finish pending text edits
                             bytesPicker.clearFocus();
@@ -1805,6 +1901,7 @@ public class DataUsageSummary extends Fragment {
             builder.setMessage(R.string.data_usage_disable_mobile);
 
             builder.setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
+                @Override
                 public void onClick(DialogInterface dialog, int which) {
                     final DataUsageSummary target = (DataUsageSummary) getTargetFragment();
                     if (target != null) {
@@ -1821,7 +1918,7 @@ public class DataUsageSummary extends Fragment {
 
     /**
      * Dialog to request user confirmation before setting
-     * {@link Settings.Global#DATA_ROAMING}.
+     * {@link android.provider.Settings.Global#DATA_ROAMING}.
      */
     public static class ConfirmDataRoamingFragment extends DialogFragment {
         public static void show(DataUsageSummary parent) {
@@ -1838,9 +1935,14 @@ public class DataUsageSummary extends Fragment {
 
             final AlertDialog.Builder builder = new AlertDialog.Builder(context);
             builder.setTitle(R.string.roaming_reenable_title);
-            builder.setMessage(R.string.roaming_warning);
+            if (Utils.hasMultipleUsers(context)) {
+                builder.setMessage(R.string.roaming_warning_multiuser);
+            } else {
+                builder.setMessage(R.string.roaming_warning);
+            }
 
             builder.setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
+                @Override
                 public void onClick(DialogInterface dialog, int which) {
                     final DataUsageSummary target = (DataUsageSummary) getTargetFragment();
                     if (target != null) {
@@ -1873,9 +1975,14 @@ public class DataUsageSummary extends Fragment {
 
             final AlertDialog.Builder builder = new AlertDialog.Builder(context);
             builder.setTitle(R.string.data_usage_restrict_background_title);
-            builder.setMessage(getString(R.string.data_usage_restrict_background));
+            if (Utils.hasMultipleUsers(context)) {
+                builder.setMessage(R.string.data_usage_restrict_background_multiuser);
+            } else {
+                builder.setMessage(R.string.data_usage_restrict_background);
+            }
 
             builder.setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
+                @Override
                 public void onClick(DialogInterface dialog, int which) {
                     final DataUsageSummary target = (DataUsageSummary) getTargetFragment();
                     if (target != null) {
@@ -1938,6 +2045,7 @@ public class DataUsageSummary extends Fragment {
             builder.setMessage(R.string.data_usage_app_restrict_dialog);
 
             builder.setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
+                @Override
                 public void onClick(DialogInterface dialog, int which) {
                     final DataUsageSummary target = (DataUsageSummary) getTargetFragment();
                     if (target != null) {
@@ -1948,6 +2056,56 @@ public class DataUsageSummary extends Fragment {
             builder.setNegativeButton(android.R.string.cancel, null);
 
             return builder.create();
+        }
+    }
+
+    /**
+     * Dialog to inform user about changing auto-sync setting
+     */
+    public static class ConfirmAutoSyncChangeFragment extends DialogFragment {
+        private static final String SAVE_ENABLING = "enabling";
+        private boolean mEnabling;
+
+        public static void show(DataUsageSummary parent, boolean enabling) {
+            if (!parent.isAdded()) return;
+
+            final ConfirmAutoSyncChangeFragment dialog = new ConfirmAutoSyncChangeFragment();
+            dialog.mEnabling = enabling;
+            dialog.setTargetFragment(parent, 0);
+            dialog.show(parent.getFragmentManager(), TAG_CONFIRM_AUTO_SYNC_CHANGE);
+        }
+
+        @Override
+        public Dialog onCreateDialog(Bundle savedInstanceState) {
+            final Context context = getActivity();
+            if (savedInstanceState != null) {
+                mEnabling = savedInstanceState.getBoolean(SAVE_ENABLING);
+            }
+
+            final AlertDialog.Builder builder = new AlertDialog.Builder(context);
+            if (!mEnabling) {
+                builder.setTitle(R.string.data_usage_auto_sync_off_dialog_title);
+                builder.setMessage(R.string.data_usage_auto_sync_off_dialog);
+            } else {
+                builder.setTitle(R.string.data_usage_auto_sync_on_dialog_title);
+                builder.setMessage(R.string.data_usage_auto_sync_on_dialog);
+            }
+
+            builder.setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(DialogInterface dialog, int which) {
+                    ContentResolver.setMasterSyncAutomatically(mEnabling);
+                }
+            });
+            builder.setNegativeButton(android.R.string.cancel, null);
+
+            return builder.create();
+        }
+
+        @Override
+        public void onSaveInstanceState(Bundle outState) {
+            super.onSaveInstanceState(outState);
+            outState.putBoolean(SAVE_ENABLING, mEnabling);
         }
     }
 
@@ -1979,23 +2137,23 @@ public class DataUsageSummary extends Fragment {
      */
     private static class UidDetailTask extends AsyncTask<Void, Void, UidDetail> {
         private final UidDetailProvider mProvider;
-        private final AppUsageItem mItem;
+        private final AppItem mItem;
         private final View mTarget;
 
-        private UidDetailTask(UidDetailProvider provider, AppUsageItem item, View target) {
+        private UidDetailTask(UidDetailProvider provider, AppItem item, View target) {
             mProvider = checkNotNull(provider);
             mItem = checkNotNull(item);
             mTarget = checkNotNull(target);
         }
 
         public static void bindView(
-                UidDetailProvider provider, AppUsageItem item, View target) {
+                UidDetailProvider provider, AppItem item, View target) {
             final UidDetailTask existing = (UidDetailTask) target.getTag();
             if (existing != null) {
                 existing.cancel(false);
             }
 
-            final UidDetail cachedDetail = provider.getUidDetail(item.uids[0], false);
+            final UidDetail cachedDetail = provider.getUidDetail(item.key, false);
             if (cachedDetail != null) {
                 bindView(cachedDetail, target);
             } else {
@@ -2024,7 +2182,7 @@ public class DataUsageSummary extends Fragment {
 
         @Override
         protected UidDetail doInBackground(Void... params) {
-            return mProvider.getUidDetail(mItem.uids[0], true);
+            return mProvider.getUidDetail(mItem.key, true);
         }
 
         @Override
@@ -2034,22 +2192,24 @@ public class DataUsageSummary extends Fragment {
     }
 
     /**
-     * Test if device has a mobile data radio.
+     * Test if device has a mobile data radio with SIM in ready state.
      */
-    private static boolean hasMobileRadio(Context context) {
+    public static boolean hasReadyMobileRadio(Context context) {
         if (TEST_RADIOS) {
             return SystemProperties.get(TEST_RADIOS_PROP).contains("mobile");
         }
 
-        final ConnectivityManager conn = (ConnectivityManager) context.getSystemService(
-                Context.CONNECTIVITY_SERVICE);
-        return conn.isNetworkSupported(TYPE_MOBILE);
+        final ConnectivityManager conn = ConnectivityManager.from(context);
+        final TelephonyManager tele = TelephonyManager.from(context);
+
+        // require both supported network and ready SIM
+        return conn.isNetworkSupported(TYPE_MOBILE) && tele.getSimState() == SIM_STATE_READY;
     }
 
     /**
      * Test if device has a mobile 4G data radio.
      */
-    private static boolean hasMobile4gRadio(Context context) {
+    public static boolean hasReadyMobile4gRadio(Context context) {
         if (!NetworkPolicyEditor.ENABLE_SPLIT_POLICIES) {
             return false;
         }
@@ -2057,40 +2217,53 @@ public class DataUsageSummary extends Fragment {
             return SystemProperties.get(TEST_RADIOS_PROP).contains("4g");
         }
 
-        final ConnectivityManager conn = (ConnectivityManager) context.getSystemService(
-                Context.CONNECTIVITY_SERVICE);
-        final TelephonyManager telephony = (TelephonyManager) context.getSystemService(
-                Context.TELEPHONY_SERVICE);
+        final ConnectivityManager conn = ConnectivityManager.from(context);
+        final TelephonyManager tele = TelephonyManager.from(context);
 
         final boolean hasWimax = conn.isNetworkSupported(TYPE_WIMAX);
-        final boolean hasLte = telephony.getLteOnCdmaMode() == Phone.LTE_ON_CDMA_TRUE;
+        final boolean hasLte = (tele.getLteOnCdmaMode() == PhoneConstants.LTE_ON_CDMA_TRUE)
+                && hasReadyMobileRadio(context);
         return hasWimax || hasLte;
     }
 
     /**
      * Test if device has a Wi-Fi data radio.
      */
-    private static boolean hasWifiRadio(Context context) {
+    public static boolean hasWifiRadio(Context context) {
         if (TEST_RADIOS) {
             return SystemProperties.get(TEST_RADIOS_PROP).contains("wifi");
         }
 
-        final ConnectivityManager conn = (ConnectivityManager) context.getSystemService(
-                Context.CONNECTIVITY_SERVICE);
+        final ConnectivityManager conn = ConnectivityManager.from(context);
         return conn.isNetworkSupported(TYPE_WIFI);
     }
 
     /**
      * Test if device has an ethernet network connection.
      */
-    private static boolean hasEthernet(Context context) {
+    public boolean hasEthernet(Context context) {
         if (TEST_RADIOS) {
             return SystemProperties.get(TEST_RADIOS_PROP).contains("ethernet");
         }
 
-        final ConnectivityManager conn = (ConnectivityManager) context.getSystemService(
-                Context.CONNECTIVITY_SERVICE);
-        return conn.isNetworkSupported(TYPE_ETHERNET);
+        final ConnectivityManager conn = ConnectivityManager.from(context);
+        final boolean hasEthernet = conn.isNetworkSupported(TYPE_ETHERNET);
+
+        final long ethernetBytes;
+        if (mStatsSession != null) {
+            try {
+                ethernetBytes = mStatsSession.getSummaryForNetwork(
+                        NetworkTemplate.buildTemplateEthernet(), Long.MIN_VALUE, Long.MAX_VALUE)
+                        .getTotalBytes();
+            } catch (RemoteException e) {
+                throw new RuntimeException(e);
+            }
+        } else {
+            ethernetBytes = 0;
+        }
+
+        // only show ethernet when both hardware present and traffic has occurred
+        return hasEthernet && ethernetBytes > 0;
     }
 
     /**
@@ -2124,6 +2297,7 @@ public class DataUsageSummary extends Fragment {
      * Build string describing currently limited networks, which defines when
      * background data is restricted.
      */
+    @Deprecated
     private CharSequence buildLimitedNetworksString() {
         final List<CharSequence> limited = buildLimitedNetworksList();
 
@@ -2139,22 +2313,28 @@ public class DataUsageSummary extends Fragment {
      * Build list of currently limited networks, which defines when background
      * data is restricted.
      */
+    @Deprecated
     private List<CharSequence> buildLimitedNetworksList() {
         final Context context = getActivity();
-        final String subscriberId = getActiveSubscriberId(context);
 
         // build combined list of all limited networks
         final ArrayList<CharSequence> limited = Lists.newArrayList();
-        if (mPolicyEditor.hasLimitedPolicy(buildTemplateMobileAll(subscriberId))) {
-            limited.add(getText(R.string.data_usage_list_mobile));
+
+        final TelephonyManager tele = TelephonyManager.from(context);
+        if (tele.getSimState() == SIM_STATE_READY) {
+            final String subscriberId = getActiveSubscriberId(context);
+            if (mPolicyEditor.hasLimitedPolicy(buildTemplateMobileAll(subscriberId))) {
+                limited.add(getText(R.string.data_usage_list_mobile));
+            }
+            if (mPolicyEditor.hasLimitedPolicy(buildTemplateMobile3gLower(subscriberId))) {
+                limited.add(getText(R.string.data_usage_tab_3g));
+            }
+            if (mPolicyEditor.hasLimitedPolicy(buildTemplateMobile4g(subscriberId))) {
+                limited.add(getText(R.string.data_usage_tab_4g));
+            }
         }
-        if (mPolicyEditor.hasLimitedPolicy(buildTemplateMobile3gLower(subscriberId))) {
-            limited.add(getText(R.string.data_usage_tab_3g));
-        }
-        if (mPolicyEditor.hasLimitedPolicy(buildTemplateMobile4g(subscriberId))) {
-            limited.add(getText(R.string.data_usage_tab_4g));
-        }
-        if (mPolicyEditor.hasLimitedPolicy(buildTemplateWifi())) {
+
+        if (mPolicyEditor.hasLimitedPolicy(buildTemplateWifiWildcard())) {
             limited.add(getText(R.string.data_usage_tab_wifi));
         }
         if (mPolicyEditor.hasLimitedPolicy(buildTemplateEthernet())) {
@@ -2199,14 +2379,5 @@ public class DataUsageSummary extends Fragment {
         final TextView summary = (TextView) parent.findViewById(android.R.id.summary);
         summary.setVisibility(View.VISIBLE);
         summary.setText(string);
-    }
-
-    private static boolean contains(int[] haystack, int needle) {
-        for (int value : haystack) {
-            if (value == needle) {
-                return true;
-            }
-        }
-        return false;
     }
 }

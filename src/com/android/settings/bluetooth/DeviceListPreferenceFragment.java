@@ -109,6 +109,7 @@ public abstract class DeviceListPreferenceFragment extends
         super.onPause();
         if (mLocalManager == null) return;
 
+        removeAllDevices();
         mLocalManager.setForegroundActivity(null);
         mLocalManager.getEventManager().unregisterCallback(this);
     }
@@ -192,8 +193,8 @@ public abstract class DeviceListPreferenceFragment extends
     }
 
     private void updateProgressUi(boolean start) {
-        if (mDeviceListGroup instanceof ProgressCategory) {
-            ((ProgressCategory) mDeviceListGroup).setProgress(start);
+        if (mDeviceListGroup instanceof BluetoothProgressCategory) {
+            ((BluetoothProgressCategory) mDeviceListGroup).setProgress(start);
         }
     }
 

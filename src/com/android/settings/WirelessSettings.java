@@ -47,11 +47,10 @@ public class WirelessSettings extends SettingsPreferenceFragment {
     private static final String KEY_WIMAX_SETTINGS = "wimax_settings";
     private static final String KEY_ANDROID_BEAM_SETTINGS = "android_beam_settings";
     private static final String KEY_VPN_SETTINGS = "vpn_settings";
-    private static final String KEY_TOGGLE_WIFI_P2P = "toggle_wifi_p2p";
-    private static final String KEY_WIFI_P2P_SETTINGS = "wifi_p2p_settings";
     private static final String KEY_TETHER_SETTINGS = "tether_settings";
     private static final String KEY_PROXY_SETTINGS = "proxy_settings";
     private static final String KEY_MOBILE_NETWORK_SETTINGS = "mobile_network_settings";
+    private static final String KEY_TOGGLE_NSD = "toggle_nsd"; //network service discovery
     private static final String KEY_CELL_BROADCAST_SETTINGS = "cell_broadcast_settings";
 
     public static final String EXIT_ECM_RESULT = "exit_ecm_result";
@@ -104,32 +103,38 @@ public class WirelessSettings extends SettingsPreferenceFragment {
         mAirplaneModePreference = (CheckBoxPreference) findPreference(KEY_TOGGLE_AIRPLANE);
         CheckBoxPreference nfc = (CheckBoxPreference) findPreference(KEY_TOGGLE_NFC);
         PreferenceScreen androidBeam = (PreferenceScreen) findPreference(KEY_ANDROID_BEAM_SETTINGS);
-
-        CheckBoxPreference wifiP2p = (CheckBoxPreference) findPreference(KEY_TOGGLE_WIFI_P2P);
+        CheckBoxPreference nsd = (CheckBoxPreference) findPreference(KEY_TOGGLE_NSD);
 
         mAirplaneModeEnabler = new AirplaneModeEnabler(activity, mAirplaneModePreference);
         mNfcEnabler = new NfcEnabler(activity, nfc, androidBeam);
+
+        // Remove NSD checkbox by default
+        getPreferenceScreen().removePreference(nsd);
+        //mNsdEnabler = new NsdEnabler(activity, nsd);
 
         String toggleable = Settings.Global.getString(activity.getContentResolver(),
                 Settings.Global.AIRPLANE_MODE_TOGGLEABLE_RADIOS);
 
         //enable/disable wimax depending on the value in config.xml
-        boolean isWimaxEnabled = this.getResources().getBoolean(
+        boolean isWimaxEnabled = !isSecondaryUser && this.getResources().getBoolean(
                 com.android.internal.R.bool.config_wimaxEnabled);
         if (!isWimaxEnabled) {
             PreferenceScreen root = getPreferenceScreen();
             Preference ps = (Preference) findPreference(KEY_WIMAX_SETTINGS);
             if (ps != null) root.removePreference(ps);
         } else {
-            if (toggleable == null || !toggleable.contains(Settings.System.RADIO_WIMAX )
+            if (toggleable == null || !toggleable.contains(Settings.Global.RADIO_WIMAX )
                     && isWimaxEnabled) {
                 Preference ps = (Preference) findPreference(KEY_WIMAX_SETTINGS);
                 ps.setDependency(KEY_TOGGLE_AIRPLANE);
             }
         }
         // Manually set dependencies for Wifi when not toggleable.
-        if (toggleable == null || !toggleable.contains(Settings.System.RADIO_WIFI)) {
+        if (toggleable == null || !toggleable.contains(Settings.Global.RADIO_WIFI)) {
             findPreference(KEY_VPN_SETTINGS).setDependency(KEY_TOGGLE_AIRPLANE);
+        }
+        if (isSecondaryUser) { // Disable VPN
+            removePreference(KEY_VPN_SETTINGS);
         }
 
         // Manually set dependencies for Bluetooth when not toggleable.
@@ -138,7 +143,7 @@ public class WirelessSettings extends SettingsPreferenceFragment {
         }
 
         // Manually set dependencies for NFC when not toggleable.
-        if (toggleable == null || !toggleable.contains(Settings.System.RADIO_NFC)) {
+        if (toggleable == null || !toggleable.contains(Settings.Global.RADIO_NFC)) {
             findPreference(KEY_TOGGLE_NFC).setDependency(KEY_TOGGLE_AIRPLANE);
             findPreference(KEY_ANDROID_BEAM_SETTINGS).setDependency(KEY_TOGGLE_AIRPLANE);
         }
@@ -167,7 +172,7 @@ public class WirelessSettings extends SettingsPreferenceFragment {
         // Disable Tethering if it's not allowed or if it's a wifi-only device
         ConnectivityManager cm =
                 (ConnectivityManager) activity.getSystemService(Context.CONNECTIVITY_SERVICE);
-        if (!cm.isTetheringSupported()) {
+        if (isSecondaryUser || !cm.isTetheringSupported()) {
             getPreferenceScreen().removePreference(findPreference(KEY_TETHER_SETTINGS));
         } else {
             Preference p = findPreference(KEY_TETHER_SETTINGS);
@@ -188,7 +193,7 @@ public class WirelessSettings extends SettingsPreferenceFragment {
         } catch (IllegalArgumentException ignored) {
             isCellBroadcastAppLinkEnabled = false;  // CMAS app not installed
         }
-        if (!isCellBroadcastAppLinkEnabled) {
+        if (isSecondaryUser || !isCellBroadcastAppLinkEnabled) {
             PreferenceScreen root = getPreferenceScreen();
             Preference ps = findPreference(KEY_CELL_BROADCAST_SETTINGS);
             if (ps != null) root.removePreference(ps);
@@ -229,5 +234,10 @@ public class WirelessSettings extends SettingsPreferenceFragment {
             mAirplaneModeEnabler.setAirplaneModeInECM(isChoiceYes,
                     mAirplaneModePreference.isChecked());
         }
+    }
+
+    @Override
+    protected int getHelpResource() {
+        return R.string.help_url_more_networks;
     }
 }

@@ -4380,29 +4380,4 @@
     <string name="cell_broadcast_settings">Cell broadcasts</string>
     <!-- Cell Broadcast settings description [CHAR LIMIT=100] -->
     <string name="cell_broadcast_settings_summary">Select the types of emergency alerts to display.</string>
-
-    <!-- Stepp-aospx specific resources -->
-    <!-- CPU Settings --> <skip/>
-    <string name="cpu_settings_title">CPU Settings</string>
-    <string name="cpu_title">CPU Settings</string>
-    <string name="cpu_summary">Governor and clock settings</string>
-    <string name="cpu_governors_title">Available governors</string>
-    <string name="cpu_governors_summary">List of available governors\nCurrently selected: %S</string>
-    <string name="cpu_min_freq_title">Min CPU frequency</string>
-    <string name="cpu_min_freq_summary">Minimum CPU frequency\nCurrently: %s</string>
-    <string name="cpu_max_freq_title">Max CPU frequency</string>
-    <string name="cpu_max_freq_summary">Maximum CPU frequency\nCurrently: %s</string>
-    <string name="cpu_set_on_boot">Set on boot</string>
-    <string name="cpu_set_on_boot_summary">Restore CPU settings on boot</string>
-
-    <!-- Development Settings. -->
-    <!-- Setting checkbox title for Whether debugging should run over TCP/IP. -->
-    <string name="adb_over_network">ADB over Wi-Fi</string>
-    <!-- Warning for Adb over Network -->
-    <string name="adb_over_network_warning">WARNING: Only use this feature when connected to trusted networks.\n\nTo Connect:\nadb connect IP:port\n\nDo you really want to enable this function?</string>
-
-    <!-- System Settings --> <skip />
-    <string name="system_settings_title">System</string>
-    <string name="pref_disable_bootanimation_title">Disable boot animation</string>
-    <string name="pref_disable_bootanimation_summary">Disable boot animation for faster boot time</string>
 </resources>

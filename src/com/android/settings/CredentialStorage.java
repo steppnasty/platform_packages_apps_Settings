@@ -25,6 +25,8 @@ import android.content.res.Resources;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.RemoteException;
+import android.os.UserHandle;
+import android.security.Credentials;
 import android.security.KeyChain.KeyChainConnection;
 import android.security.KeyChain;
 import android.security.KeyStore;
@@ -103,8 +105,15 @@ public final class CredentialStorage extends Activity {
      */
     private int mRetriesRemaining = -1;
 
-    @Override protected void onResume() {
+    @Override
+    protected void onResume() {
         super.onResume();
+
+        if (UserHandle.myUserId() != UserHandle.USER_OWNER) {
+            Log.i(TAG, "Cannot install to CredentialStorage as non-primary user");
+            finish();
+            return;
+        }
 
         Intent intent = getIntent();
         String action = intent.getAction();
@@ -112,8 +121,8 @@ public final class CredentialStorage extends Activity {
         if (ACTION_RESET.equals(action)) {
             new ResetDialog();
         } else {
-            if (ACTION_INSTALL.equals(action) &&
-                    "com.android.certinstaller".equals(getCallingPackage())) {
+            if (ACTION_INSTALL.equals(action)
+                    && "com.android.certinstaller".equals(getCallingPackage())) {
                 mInstallBundle = intent.getExtras();
             }
             // ACTION_UNLOCK also handled here in addition to ACTION_INSTALL
@@ -187,13 +196,38 @@ public final class CredentialStorage extends Activity {
         if (mInstallBundle != null && !mInstallBundle.isEmpty()) {
             Bundle bundle = mInstallBundle;
             mInstallBundle = null;
-            for (String key : bundle.keySet()) {
-                byte[] value = bundle.getByteArray(key);
-                if (value != null && !mKeyStore.put(key, value)) {
+
+            if (bundle.containsKey(Credentials.EXTRA_USER_PRIVATE_KEY_NAME)) {
+                String key = bundle.getString(Credentials.EXTRA_USER_PRIVATE_KEY_NAME);
+                byte[] value = bundle.getByteArray(Credentials.EXTRA_USER_PRIVATE_KEY_DATA);
+
+                if (!mKeyStore.importKey(key, value)) {
                     Log.e(TAG, "Failed to install " + key);
                     return;
                 }
             }
+
+            if (bundle.containsKey(Credentials.EXTRA_USER_CERTIFICATE_NAME)) {
+                String certName = bundle.getString(Credentials.EXTRA_USER_CERTIFICATE_NAME);
+                byte[] certData = bundle.getByteArray(Credentials.EXTRA_USER_CERTIFICATE_DATA);
+
+                if (!mKeyStore.put(certName, certData)) {
+                    Log.e(TAG, "Failed to install " + certName);
+                    return;
+                }
+            }
+
+            if (bundle.containsKey(Credentials.EXTRA_CA_CERTIFICATES_NAME)) {
+                String caListName = bundle.getString(Credentials.EXTRA_CA_CERTIFICATES_NAME);
+                byte[] caListData = bundle.getByteArray(Credentials.EXTRA_CA_CERTIFICATES_DATA);
+
+                if (!mKeyStore.put(caListName, caListData)) {
+                    Log.e(TAG, "Failed to install " + caListName);
+                    return;
+                }
+
+            }
+
             setResult(RESULT_OK);
         }
     }
@@ -312,8 +346,8 @@ public final class CredentialStorage extends Activity {
         Resources res = getResources();
         boolean launched = new ChooseLockSettingsHelper(this)
                 .launchConfirmationActivity(CONFIRM_KEY_GUARD_REQUEST,
-                                            res.getText(R.string.master_clear_gesture_prompt),
-                                            res.getText(R.string.master_clear_gesture_explanation));
+                                            res.getText(R.string.credentials_install_gesture_prompt),
+                                            res.getText(R.string.credentials_install_gesture_explanation));
         return launched;
     }
 

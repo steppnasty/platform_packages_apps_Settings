@@ -149,14 +149,6 @@ public class TextToSpeechSettings extends SettingsPreferenceFragment implements
         }
     }
 
-    @Override
-    public void onPause() {
-        super.onPause();
-        if ((mDefaultRatePref != null) && (mDefaultRatePref.getDialog() != null)) {
-            mDefaultRatePref.getDialog().dismiss();
-        }
-    }
-
     private void initSettings() {
         final ContentResolver resolver = getContentResolver();
 
@@ -192,23 +184,6 @@ public class TextToSpeechSettings extends SettingsPreferenceFragment implements
         checkVoiceData(mCurrentEngine);
     }
 
-    private void maybeUpdateTtsLanguage(String currentEngine) {
-        if (currentEngine != null && mTts != null) {
-            final String localeString = mEnginesHelper.getLocalePrefForEngine(
-                    currentEngine);
-            if (localeString != null) {
-                final String[] locale = TtsEngines.parseLocalePref(localeString);
-                final Locale newLocale = new Locale(locale[0], locale[1], locale[2]);
-                final Locale engineLocale = mTts.getLanguage();
-
-                if (!newLocale.equals(engineLocale)) {
-                    if (DBG) Log.d(TAG, "Loading language ahead of sample check : " + locale);
-                    mTts.setLanguage(newLocale);
-                }
-            }
-        }
-    }
-
     /**
      * Ask the current default engine to return a string of sample text to be
      * spoken to the user.
@@ -218,7 +193,6 @@ public class TextToSpeechSettings extends SettingsPreferenceFragment implements
 
         if (TextUtils.isEmpty(currentEngine)) currentEngine = mTts.getDefaultEngine();
 
-        maybeUpdateTtsLanguage(currentEngine);
         Locale currentLocale = mTts.getLanguage();
 
         // TODO: This is currently a hidden private API. The intent extras
@@ -306,6 +280,7 @@ public class TextToSpeechSettings extends SettingsPreferenceFragment implements
         }
     }
 
+    @Override
     public boolean onPreferenceChange(Preference preference, Object objValue) {
         if (KEY_DEFAULT_RATE.equals(preference.getKey())) {
             // Default rate
@@ -327,6 +302,7 @@ public class TextToSpeechSettings extends SettingsPreferenceFragment implements
     /**
      * Called when mPlayExample is clicked
      */
+    @Override
     public boolean onPreferenceClick(Preference preference) {
         if (preference == mPlayExample) {
             // Get the sample text from the TTS engine; onActivityResult will do
@@ -353,6 +329,7 @@ public class TextToSpeechSettings extends SettingsPreferenceFragment implements
         builder.setCancelable(true);
         builder.setPositiveButton(android.R.string.ok,
                 new DialogInterface.OnClickListener() {
+                    @Override
                     public void onClick(DialogInterface dialog, int which) {
                        updateDefaultEngine(key);
                     }

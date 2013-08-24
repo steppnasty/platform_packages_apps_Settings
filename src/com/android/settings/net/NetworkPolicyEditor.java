@@ -28,11 +28,10 @@ import static android.net.NetworkTemplate.buildTemplateMobile4g;
 import static android.net.NetworkTemplate.buildTemplateMobileAll;
 import static com.android.internal.util.Preconditions.checkNotNull;
 
-import android.net.INetworkPolicyManager;
 import android.net.NetworkPolicy;
+import android.net.NetworkPolicyManager;
 import android.net.NetworkTemplate;
 import android.os.AsyncTask;
-import android.os.RemoteException;
 import android.text.format.Time;
 
 import com.android.internal.util.Objects;
@@ -44,27 +43,23 @@ import java.util.HashSet;
 
 /**
  * Utility class to modify list of {@link NetworkPolicy}. Specifically knows
- * about which policies can coexist. Not thread safe.
+ * about which policies can coexist. This editor offers thread safety when
+ * talking with {@link NetworkPolicyManager}.
  */
 public class NetworkPolicyEditor {
     // TODO: be more robust when missing policies from service
 
     public static final boolean ENABLE_SPLIT_POLICIES = false;
 
-    private INetworkPolicyManager mPolicyService;
+    private NetworkPolicyManager mPolicyManager;
     private ArrayList<NetworkPolicy> mPolicies = Lists.newArrayList();
 
-    public NetworkPolicyEditor(INetworkPolicyManager policyService) {
-        mPolicyService = checkNotNull(policyService);
+    public NetworkPolicyEditor(NetworkPolicyManager policyManager) {
+        mPolicyManager = checkNotNull(policyManager);
     }
 
     public void read() {
-        final NetworkPolicy[] policies;
-        try {
-            policies = mPolicyService.getNetworkPolicies();
-        } catch (RemoteException e) {
-            throw new RuntimeException("problem reading policies", e);
-        }
+        final NetworkPolicy[] policies = mPolicyManager.getNetworkPolicies();
 
         boolean modified = false;
         mPolicies.clear();
@@ -77,12 +72,6 @@ public class NetworkPolicyEditor {
             if (policy.warningBytes < -1) {
                 policy.warningBytes = WARNING_DISABLED;
                 modified = true;
-            }
-
-            // drop any WIFI policies that were defined
-            if (policy.template.getMatchRule() == MATCH_WIFI) {
-                modified = true;
-                continue;
             }
 
             mPolicies.add(policy);
@@ -110,11 +99,7 @@ public class NetworkPolicyEditor {
     }
 
     public void write(NetworkPolicy[] policies) {
-        try {
-            mPolicyService.setNetworkPolicies(policies);
-        } catch (RemoteException e) {
-            throw new RuntimeException("problem writing policies", e);
-        }
+        mPolicyManager.setNetworkPolicies(policies);
     }
 
     public boolean hasLimitedPolicy(NetworkTemplate template) {
@@ -200,6 +185,45 @@ public class NetworkPolicyEditor {
         writeAsync();
     }
 
+    public boolean getPolicyMetered(NetworkTemplate template) {
+        final NetworkPolicy policy = getPolicy(template);
+        if (policy != null) {
+            return policy.metered;
+        } else {
+            return false;
+        }
+    }
+
+    public void setPolicyMetered(NetworkTemplate template, boolean metered) {
+        boolean modified = false;
+
+        NetworkPolicy policy = getPolicy(template);
+        if (metered) {
+            if (policy == null) {
+                policy = buildDefaultPolicy(template);
+                policy.metered = true;
+                policy.inferred = false;
+                mPolicies.add(policy);
+                modified = true;
+            } else if (!policy.metered) {
+                policy.metered = true;
+                policy.inferred = false;
+                modified = true;
+            }
+
+        } else {
+            if (policy == null) {
+                // ignore when policy doesn't exist
+            } else if (policy.metered) {
+                policy.metered = false;
+                policy.inferred = false;
+                modified = true;
+            }
+        }
+
+        if (modified) writeAsync();
+    }
+
     /**
      * Remove any split {@link NetworkPolicy}.
      */
@@ -216,6 +240,7 @@ public class NetworkPolicyEditor {
         return modified;
     }
 
+    @Deprecated
     public boolean isMobilePolicySplit(String subscriberId) {
         boolean has3g = false;
         boolean has4g = false;
@@ -235,6 +260,7 @@ public class NetworkPolicyEditor {
         return has3g && has4g;
     }
 
+    @Deprecated
     public void setMobilePolicySplit(String subscriberId, boolean split) {
         if (setMobilePolicySplitInternal(subscriberId, split)) {
             writeAsync();
@@ -247,6 +273,7 @@ public class NetworkPolicyEditor {
      *
      * @return {@code true} when any {@link NetworkPolicy} was mutated.
      */
+    @Deprecated
     private boolean setMobilePolicySplitInternal(String subscriberId, boolean split) {
         final boolean beforeSplit = isMobilePolicySplit(subscriberId);
 
@@ -267,24 +294,21 @@ public class NetworkPolicyEditor {
                     : policy4g;
             mPolicies.remove(policy3g);
             mPolicies.remove(policy4g);
-            mPolicies.add(
-                    new NetworkPolicy(templateAll, restrictive.cycleDay, restrictive.cycleTimezone,
-                            restrictive.warningBytes, restrictive.limitBytes, SNOOZE_NEVER,
-                            SNOOZE_NEVER, restrictive.metered, restrictive.inferred));
+            mPolicies.add(new NetworkPolicy(templateAll, restrictive.cycleDay,
+                    restrictive.cycleTimezone, restrictive.warningBytes, restrictive.limitBytes,
+                    SNOOZE_NEVER, SNOOZE_NEVER, restrictive.metered, restrictive.inferred));
             return true;
 
         } else if (!beforeSplit && split) {
             // duplicate existing policy into two rules
             final NetworkPolicy policyAll = getPolicy(templateAll);
             mPolicies.remove(policyAll);
-            mPolicies.add(
-                    new NetworkPolicy(template3g, policyAll.cycleDay, policyAll.cycleTimezone,
-                            policyAll.warningBytes, policyAll.limitBytes, SNOOZE_NEVER,
-                            SNOOZE_NEVER, policyAll.metered, policyAll.inferred));
-            mPolicies.add(
-                    new NetworkPolicy(template4g, policyAll.cycleDay, policyAll.cycleTimezone, 
-                            policyAll.warningBytes, policyAll.limitBytes, SNOOZE_NEVER, 
-                            SNOOZE_NEVER, policyAll.metered, policyAll.inferred));
+            mPolicies.add(new NetworkPolicy(template3g, policyAll.cycleDay, policyAll.cycleTimezone,
+                    policyAll.warningBytes, policyAll.limitBytes, SNOOZE_NEVER, SNOOZE_NEVER,
+                    policyAll.metered, policyAll.inferred));
+            mPolicies.add(new NetworkPolicy(template4g, policyAll.cycleDay, policyAll.cycleTimezone,
+                    policyAll.warningBytes, policyAll.limitBytes, SNOOZE_NEVER, SNOOZE_NEVER,
+                    policyAll.metered, policyAll.inferred));
             return true;
         } else {
             return false;

@@ -71,11 +71,7 @@ public final class BluetoothDevicePreference extends Preference implements
 
         mCachedDevice.registerCallback(this);
 
-        new Thread (new Runnable(){
-            public void run () {
-                onDeviceAttributesChanged();
-            }
-        }).start();
+        onDeviceAttributesChanged();
     }
 
     CachedBluetoothDevice getCachedDevice() {

@@ -38,7 +38,6 @@ import android.widget.Button;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 
-import com.android.internal.util.AsyncChannel;
 import com.android.settings.R;
 
 import java.util.Collection;
@@ -198,25 +197,6 @@ public class WifiSettingsForSetupWizardXL extends Activity implements OnClickLis
         mWifiSettingsFragmentLayout = findViewById(R.id.wifi_settings_fragment_layout);
         mConnectingStatusLayout = findViewById(R.id.connecting_status_layout);
         mConnectingStatusView = (TextView) findViewById(R.id.connecting_status);
-    }
-
-    private class WifiServiceHandler extends Handler {
-        @Override
-        public void handleMessage(Message msg) {
-            switch (msg.what) {
-                case AsyncChannel.CMD_CHANNEL_HALF_CONNECTED:
-                    if (msg.arg1 == AsyncChannel.STATUS_SUCCESSFUL) {
-                        //AsyncChannel in msg.obj
-                    } else {
-                        //AsyncChannel set up failure, ignore
-                        Log.e(TAG, "Failed to establish AsyncChannel connection");
-                    }
-                    break;
-                default:
-                    //Ignore
-                    break;
-            }
-        }
     }
 
     private void restoreFirstVisibilityState() {
