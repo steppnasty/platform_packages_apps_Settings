@@ -172,9 +172,13 @@ public class StorageVolumePreferenceCategory extends PreferenceCategory {
             }
 
             addPreference(mItemApps);
-            addPreference(mItemDcim);
-            addPreference(mItemMusic);
-            addPreference(mItemDownloads);
+
+            if (mVolume != null || Environment.isExternalStorageEmulated()) {
+                addPreference(mItemDcim);
+                addPreference(mItemMusic);
+                addPreference(mItemDownloads);
+            }
+
             addPreference(mItemCache);
             addPreference(mItemMisc);
 
@@ -327,17 +331,19 @@ public class StorageVolumePreferenceCategory extends PreferenceCategory {
 
         updatePreference(mItemApps, details.appsSize);
 
-        final long dcimSize = totalValues(details.mediaSize, Environment.DIRECTORY_DCIM,
-                Environment.DIRECTORY_MOVIES, Environment.DIRECTORY_PICTURES);
-        updatePreference(mItemDcim, dcimSize);
+        if (mVolume != null || Environment.isExternalStorageEmulated()) {
+            final long dcimSize = totalValues(details.mediaSize, Environment.DIRECTORY_DCIM,
+                    Environment.DIRECTORY_MOVIES, Environment.DIRECTORY_PICTURES);
+            updatePreference(mItemDcim, dcimSize);
 
-        final long musicSize = totalValues(details.mediaSize, Environment.DIRECTORY_MUSIC,
-                Environment.DIRECTORY_ALARMS, Environment.DIRECTORY_NOTIFICATIONS,
-                Environment.DIRECTORY_RINGTONES, Environment.DIRECTORY_PODCASTS);
-        updatePreference(mItemMusic, musicSize);
+            final long musicSize = totalValues(details.mediaSize, Environment.DIRECTORY_MUSIC,
+                    Environment.DIRECTORY_ALARMS, Environment.DIRECTORY_NOTIFICATIONS,
+                    Environment.DIRECTORY_RINGTONES, Environment.DIRECTORY_PODCASTS);
+            updatePreference(mItemMusic, musicSize);
 
-        final long downloadsSize = totalValues(details.mediaSize, Environment.DIRECTORY_DOWNLOADS);
-        updatePreference(mItemDownloads, downloadsSize);
+            final long downloadsSize = totalValues(details.mediaSize, Environment.DIRECTORY_DOWNLOADS);
+            updatePreference(mItemDownloads, downloadsSize);
+        }
 
         updatePreference(mItemCache, details.cacheSize);
         updatePreference(mItemMisc, details.miscSize);
