@@ -347,6 +347,11 @@ public class DisplaySettings extends SettingsPreferenceFragment implements
             Settings.System.putInt(getContentResolver(), Settings.System.NOTIFICATION_LIGHT_PULSE,
                     value ? 1 : 0);
             return true;
+        } else if (preference == mTrackballWake) {
+            boolean value = mTrackballWake.isChecked();
+            Settings.System.putInt(getContentResolver(), Settings.System.TRACKBALL_WAKE_SCREEN,
+                    value ? 1 : 0);
+            return true;
         }
         return super.onPreferenceTreeClick(preferenceScreen, preference);
     }
