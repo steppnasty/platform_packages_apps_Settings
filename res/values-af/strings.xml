@@ -1830,4 +1830,8 @@
     <string name="user_picture_title" msgid="7297782792000291692">"Foto-ID"</string>
     <string name="cell_broadcast_settings" msgid="8415582011920085222">"Seluitsendings"</string>
     <string name="cell_broadcast_settings_summary" msgid="3301339398950905913">"Kies die tipe noodwaarskuwings wat vertoon moet word."</string>
+
+    <!-- aospSX additions -->
+    <!-- Themes settings -->
+    <string name="themes_settings_title">Temas</string>
 </resources>
