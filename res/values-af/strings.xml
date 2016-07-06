@@ -1832,6 +1832,27 @@
     <string name="cell_broadcast_settings_summary" msgid="3301339398950905913">"Kies die tipe noodwaarskuwings wat vertoon moet word."</string>
 
     <!-- aospSX additions -->
-    <!-- Themes settings -->
     <string name="themes_settings_title">Temas</string>
+    <string name="adb_over_network">ADB oor netwerk</string>
+    <string name="adb_over_network_summary">Aktiveer TCP/IP-ontfouting oor die netwerk koppelvlakke (Wi-Fi, USB netwerke). Hierdie instelling word teruggestel tydens herlaai</string>
+    <string name="adb_over_network_warning">WAARSKUWING: Wanneer ADB oor netwerk aangeskakel is, is die toestel kwesbaar vir indringers op alle verbonde netwerke, insluitend die GSM data netwerk\n\nGebruik Slegs hierdie funksie wanneer vertroude netwerke verbind is\n\nWil jy dit aanskakel?</string>
+    <string name="kill_app_longpress_back">Beëindig met Terug-knoppie</string>
+    <string name="kill_app_longpress_back_summary">Beëindig die voorgrond program deur \'n lang-druk op die Terug-knoppie</string>
+    <string name="advanced_reboot_title">Gevorderde herlaai</string>
+    <string name="advanced_reboot_summary">Wanneer toestel ontsluit is, maak die \'recovery\' en \'bootloader\' herlaai opsies in die kragkieslys beskikbaar</string>
+    <string name="link_volume_ringtones">Koppel foon-luitoon &amp; kennisgewing volumes</string>
+    <string name="link_volume_mutes">Demping affekteer ook kennisgewings</string>
+    <string name="volume_overlay_title">Volume-paneel styl</string>
+    <string name="volume_ring_only_description">Luitoon</string>
+    <string name="performance_prefs_title">Werkverrigting</string>
+    <string name="cpu_settings_title">SVE Instellings</string>
+    <string name="cpu_title">SVE Instellings</string>
+    <string name="cpu_summary">Goewerneur en klok instellings</string>
+    <string name="cpu_governors_title">Beskikbaar goewerneur</string>
+    <string name="cpu_governors_summary">Lys van beskikbare goewerneur\nTans gekies: %S</string>
+    <string name="cpu_min_freq_title">Minimum SVE-frekwensie</string>
+    <string name="cpu_max_freq_title">Maksimum SVE-frekwensie</string>
+    <string name="cpu_set_on_boot">Ingestel na herlaai</string>
+    <string name="cpu_set_on_boot_summary">Herstel die verwerker instellings nadat die toestel herlaai is</string>
+    <string name="system_settings_title">Stelsel</string>
 </resources>

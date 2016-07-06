@@ -61,7 +61,6 @@ public class DisplaySettings extends SettingsPreferenceFragment implements
     private static final String KEY_NOTIFICATION_PULSE = "notification_pulse";
     private static final String KEY_SCREEN_SAVER = "screensaver";
     private static final String KEY_WIFI_DISPLAY = "wifi_display";
-    private static final String TRACKBALL_WAKE_TOGGLE = "trackball_wake_toggle";
 
     private static final int DLG_GLOBAL_CHANGE_WARNING = 1;
 
@@ -70,7 +69,6 @@ public class DisplaySettings extends SettingsPreferenceFragment implements
     private CheckBoxPreference mAccelerometer;
     private WarnedListPreference mFontSizePref;
     private CheckBoxPreference mNotificationPulse;
-    private CheckBoxPreference mTrackballWake;
 
     private final Configuration mCurConfig = new Configuration();
     
@@ -144,15 +142,6 @@ public class DisplaySettings extends SettingsPreferenceFragment implements
                 == WifiDisplayStatus.FEATURE_STATE_UNAVAILABLE) {
             getPreferenceScreen().removePreference(mWifiDisplayPreference);
             mWifiDisplayPreference = null;
-        }
-
-        mTrackballWake = (CheckBoxPreference) findPreference(
-                TRACKBALL_WAKE_TOGGLE);
-        mTrackballWake.setChecked(Settings.System.getInt(getContentResolver(),
-                Settings.System.TRACKBALL_WAKE_SCREEN, 1) == 1);
-        /* Remove mTrackballWake on devices without trackballs */
-        if (!getResources().getBoolean(R.bool.has_trackball)) {
-            getPreferenceScreen().removePreference(mTrackballWake);
         }
     }
 
@@ -345,11 +334,6 @@ public class DisplaySettings extends SettingsPreferenceFragment implements
         } else if (preference == mNotificationPulse) {
             boolean value = mNotificationPulse.isChecked();
             Settings.System.putInt(getContentResolver(), Settings.System.NOTIFICATION_LIGHT_PULSE,
-                    value ? 1 : 0);
-            return true;
-        } else if (preference == mTrackballWake) {
-            boolean value = mTrackballWake.isChecked();
-            Settings.System.putInt(getContentResolver(), Settings.System.TRACKBALL_WAKE_SCREEN,
                     value ? 1 : 0);
             return true;
         }

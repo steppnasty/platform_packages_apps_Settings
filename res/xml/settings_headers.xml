@@ -97,17 +97,6 @@
         android:title="@string/applications_settings"
         android:id="@+id/application_settings" />
 
-    <!-- Themes -->
-    <header
-        android:id="@+id/themes_settings"
-        android:icon="@drawable/ic_settings_themes"
-        android:title="@string/themes_settings_title">
-        <intent
-            android:action="android.intent.action.MAIN"
-            android:targetPackage="com.tmobile.themechooser"
-            android:targetClass="com.tmobile.themechooser.ThemeChooser" />
-    </header>
-
     <!-- Manage users -->
     <header
         android:fragment="com.android.settings.users.UserSettings"
@@ -199,5 +188,45 @@
         android:fragment="com.android.settings.DeviceInfoSettings"
         android:icon="@drawable/ic_settings_about"
         android:title="@string/about_settings" />
+
+    <!-- aospSX Control Header -->
+    <header android:title="@string/header_category_aospsx" />
+
+    <!-- Themes -->
+    <header
+        android:id="@+id/themes_settings"
+        android:icon="@drawable/ic_settings_themes"
+        android:title="@string/themes_settings_title">
+        <intent
+            android:action="android.intent.action.MAIN"
+            android:targetPackage="com.tmobile.themechooser"
+            android:targetClass="com.tmobile.themechooser.ThemeChooser" />
+    </header>
+
+    <!-- Performance Settings -->
+    <header
+        android:id="@+id/performance_settings"
+        android:title="@string/performance_prefs_title"
+        android:fragment="com.android.settings.PerformanceSettings"
+        android:icon="@drawable/ic_settings_performance">
+    </header>
+
+    <!-- OTAUpdater Header -->
+    <header
+        android:title="@string/otaupdate_settings_title"
+        android:icon="@drawable/ic_settings_updates">
+        <intent
+            android:action="android.intent.action.MAIN"
+            android:targetPackage="com.otaupdater"
+            android:targetClass="com.otaupdater.OTAUpdaterActivity" />
+    </header>
+
+    <!-- Additional Preferences -->
+    <header
+        android:id="@+id/aospsx_settings"
+        android:title="@string/aospsx_pref_title"
+        android:fragment="com.android.settings.ASXSettings"
+        android:icon="@drawable/ic_settings_advanced">
+    </header>
 
 </preference-headers>

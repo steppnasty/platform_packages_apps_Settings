@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+    <PreferenceCategory android:title="@string/cpu_settings_title"
+        android:key="cpu">
+
+    <ListPreference
+            android:key="min_freq_preference"
+            android:dialogTitle="@string/cpu_min_freq_title"
+            android:title="@string/cpu_min_freq_title"
+            android:summary="Minimum CPU frequency" />
+
+    <ListPreference
+            android:key="max_freq_preference"
+            android:dialogTitle="@string/cpu_max_freq_title"
+            android:title="@string/cpu_max_freq_title"
+            android:summary="Maximum CPU frequency" />
+
+    <ListPreference
+            android:key="gov_preference"
+            android:dialogTitle="@string/cpu_governors_title"
+            android:title="@string/cpu_governors_title" />
+
+    <CheckBoxPreference
+            android:key="sob_preference"
+            android:title="@string/cpu_set_on_boot"
+            android:summary="@string/cpu_set_on_boot_summary" />
+    </PreferenceCategory>
+
+    <PreferenceCategory
+            android:title="@string/system_settings_title">
+	
+        <CheckBoxPreference android:key="pref_disable_bootanimation"
+            android:title="@string/pref_disable_bootanimation_title"
+            android:summary="@string/pref_disable_bootanimation_summary" />
+	
+    </PreferenceCategory>
+</PreferenceScreen>
