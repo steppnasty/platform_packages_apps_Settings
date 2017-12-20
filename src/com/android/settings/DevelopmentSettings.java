@@ -410,7 +410,7 @@ public class DevelopmentSettings extends PreferenceFragment
         final ContentResolver cr = context.getContentResolver();
         mHaveDebugSettings = false;
         updateCheckBox(mEnableAdb, Settings.Global.getInt(cr,
-                Settings.Global.ADB_ENABLED, 0) != 0);
+                Settings.Global.ADB_ENABLED, 1) != 0);
         updateCheckBox(mBugreportInPower, Settings.Secure.getInt(cr,
                 Settings.Secure.BUGREPORT_IN_POWER_MENU, 0) != 0);
         updateCheckBox(mKeepScreenOn, Settings.Global.getInt(cr,
@@ -579,7 +579,7 @@ public class DevelopmentSettings extends PreferenceFragment
 
     private boolean enableVerifierSetting() {
         final ContentResolver cr = getActivity().getContentResolver();
-        if (Settings.Global.getInt(cr, Settings.Global.ADB_ENABLED, 0) == 0) {
+        if (Settings.Global.getInt(cr, Settings.Global.ADB_ENABLED, 1) == 0) {
             return false;
         }
         if (Settings.Global.getInt(cr, Settings.Global.PACKAGE_VERIFIER_ENABLE, 1) == 0) {
