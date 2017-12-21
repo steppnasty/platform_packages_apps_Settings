@@ -1,6 +1,8 @@
 package com.android.settings;
 
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Message;
 import android.os.SystemProperties;
 import android.preference.ListPreference;
 import android.preference.CheckBoxPreference;
@@ -11,6 +13,7 @@ import android.provider.Settings;
 import android.util.Log;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -19,11 +22,13 @@ public class PerformanceSettings extends SettingsPreferenceFragment implements
         Preference.OnPreferenceChangeListener {
 
     public static final String GOV_PREFERENCE = "gov_preference";
-    public static final String GOVERNORS_LIST_FILE = "/sys/devices/system/cpu/cpu0/cpufreq/scaling_available_governors";
-    public static final String GOVERNOR = "/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor";
+    public static final String GOV_LIST_FILE = "/sys/devices/system/cpu/cpu0/cpufreq/scaling_available_governors";
+    public static final String GOV_FILE = "/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor";
+    public static final String CUR_FREQ_PREFERENCE = "cur_freq_preference";
     public static final String MIN_FREQ_PREFERENCE = "min_freq_preference";
     public static final String MAX_FREQ_PREFERENCE = "max_freq_preference";
     public static final String FREQ_LIST_FILE = "/sys/devices/system/cpu/cpu0/cpufreq/scaling_available_frequencies";
+    public static final String FREQ_CUR_FILE = "/sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq";
     public static final String FREQ_MAX_FILE = "/sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq";
     public static final String FREQ_MIN_FILE = "/sys/devices/system/cpu/cpu0/cpufreq/scaling_min_freq";
     public static final String SOB_PREFERENCE = "sob_preference";
@@ -39,9 +44,39 @@ public class PerformanceSettings extends SettingsPreferenceFragment implements
     private String mMaxFrequencyFormat;
 
     private ListPreference mGovernorPref;
+    private Preference mCurFrequencyPref;
     private ListPreference mMinFrequencyPref;
     private ListPreference mMaxFrequencyPref;
     CheckBoxPreference mDisableBootanimPref;
+
+    private class CurCPUThread extends Thread {
+        private boolean mInterrupt = false;
+
+        public void interrupt() {
+            mInterrupt = true;
+        }
+
+        @Override
+        public void run() {
+            try {
+                while (!mInterrupt) {
+                    sleep(500);
+                    final String curFreq = readOneLine(FREQ_CUR_FILE);
+                    if (curFreq != null)
+                        mCurCPUHandler.sendMessage(mCurCPUHandler.obtainMessage(0, curFreq));
+                }
+            } catch (InterruptedException e) {
+            }
+        }
+    };
+
+    private CurCPUThread mCurCPUThread = new CurCPUThread();
+
+    private Handler mCurCPUHandler = new Handler() {
+        public void handleMessage(Message msg) {
+            mCurFrequencyPref.setSummary(toMHz((String) msg.obj));
+        }
+    };
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -51,52 +86,79 @@ public class PerformanceSettings extends SettingsPreferenceFragment implements
         mMinFrequencyFormat = getString(R.string.cpu_min_freq_summary);
         mMaxFrequencyFormat = getString(R.string.cpu_max_freq_summary);
 
-        String[] availableGovernors = readOneLine(GOVERNORS_LIST_FILE).split(" ");
+        String[] availableGovernors = new String[0];
         String[] availableFrequencies = new String[0];
-        String availableFrequenciesLine = readOneLine(FREQ_LIST_FILE);
-        if (availableFrequenciesLine != null)
-             availableFrequencies = availableFrequenciesLine.split(" ");
         String[] frequencies;
+        String availableGovernorsLine;
+        String availableFrequenciesLine;
+        String disableBootanimation;
         String temp;
-
-        frequencies = new String[availableFrequencies.length];
-        for (int i = 0; i < frequencies.length; i++) {
-            frequencies[i] = toMHz(availableFrequencies[i]);
-        }
 
         addPreferencesFromResource(R.xml.performance_settings);
 
         PreferenceScreen PrefScreen = getPreferenceScreen();
 
-        temp = readOneLine(GOVERNOR);
-
         mGovernorPref = (ListPreference) PrefScreen.findPreference(GOV_PREFERENCE);
-        mGovernorPref.setEntryValues(availableGovernors);
-        mGovernorPref.setEntries(availableGovernors);
-        mGovernorPref.setValue(temp);
-        mGovernorPref.setSummary(String.format(mGovernorFormat, temp));
-        mGovernorPref.setOnPreferenceChangeListener(this);
-
-        temp = readOneLine(FREQ_MIN_FILE);
-
+        mCurFrequencyPref = (Preference) PrefScreen.findPreference(CUR_FREQ_PREFERENCE);
         mMinFrequencyPref = (ListPreference) PrefScreen.findPreference(MIN_FREQ_PREFERENCE);
-        mMinFrequencyPref.setEntryValues(availableFrequencies);
-        mMinFrequencyPref.setEntries(frequencies);
-        mMinFrequencyPref.setValue(temp);
-        mMinFrequencyPref.setSummary(String.format(mMinFrequencyFormat, toMHz(temp)));
-        mMinFrequencyPref.setOnPreferenceChangeListener(this);
-
-        temp = readOneLine(FREQ_MAX_FILE);
-
         mMaxFrequencyPref = (ListPreference) PrefScreen.findPreference(MAX_FREQ_PREFERENCE);
-        mMaxFrequencyPref.setEntryValues(availableFrequencies);
-        mMaxFrequencyPref.setEntries(frequencies);
-        mMaxFrequencyPref.setValue(temp);
-        mMaxFrequencyPref.setSummary(String.format(mMaxFrequencyFormat, toMHz(temp)));
-        mMaxFrequencyPref.setOnPreferenceChangeListener(this);
+
+        if (!fileExists(GOV_LIST_FILE) || !fileExists(GOV_FILE) ||
+                (temp = readOneLine(GOV_FILE)) == null ||
+                (availableGovernorsLine = readOneLine(GOV_LIST_FILE)) == null) {
+            PrefScreen.removePreference(mGovernorPref);
+        } else {
+            availableGovernors = availableGovernorsLine.split(" ");
+            mGovernorPref.setEntryValues(availableGovernors);
+            mGovernorPref.setEntries(availableGovernors);
+            mGovernorPref.setValue(temp);
+            mGovernorPref.setSummary(String.format(mGovernorFormat, temp));
+            mGovernorPref.setOnPreferenceChangeListener(this);
+        }
+
+        if (!fileExists(FREQ_LIST_FILE) ||
+                (availableFrequenciesLine = readOneLine(FREQ_LIST_FILE)) == null) {
+            mMinFrequencyPref.setEnabled(false);
+            mMaxFrequencyPref.setEnabled(false);
+        } else {
+            availableFrequencies = availableFrequenciesLine.split(" ");
+            frequencies = new String[availableFrequencies.length];
+            for (int i = 0; i < frequencies.length; i++) {
+                frequencies[i] = toMHz(availableFrequencies[i]);
+            }
+
+            if (!fileExists(FREQ_MIN_FILE) ||
+                    (temp = readOneLine(FREQ_MIN_FILE)) == null) {
+                mMinFrequencyPref.setEnabled(false);
+            } else {
+                mMinFrequencyPref.setEntryValues(availableFrequencies);
+                mMinFrequencyPref.setEntries(frequencies);
+                mMinFrequencyPref.setValue(temp);
+                mMinFrequencyPref.setSummary(String.format(mMinFrequencyFormat, toMHz(temp)));
+                mMinFrequencyPref.setOnPreferenceChangeListener(this);
+            }
+
+            if (!fileExists(FREQ_MAX_FILE) ||
+                    (temp = readOneLine(FREQ_MAX_FILE)) == null) {
+                mMaxFrequencyPref.setEnabled(false);
+            } else {
+                mMaxFrequencyPref.setEntryValues(availableFrequencies);
+                mMaxFrequencyPref.setEntries(frequencies);
+                mMaxFrequencyPref.setValue(temp);
+                mMaxFrequencyPref.setSummary(String.format(mMaxFrequencyFormat, toMHz(temp)));
+                mMaxFrequencyPref.setOnPreferenceChangeListener(this);
+            }
+        }
+
+        if (!fileExists(FREQ_CUR_FILE) || (temp = readOneLine(FREQ_CUR_FILE)) == null) {
+            mCurFrequencyPref.setEnabled(false);
+        } else {
+            mCurFrequencyPref.setSummary(toMHz(temp));
+            mCurCPUThread.start();
+        }
 
         mDisableBootanimPref = (CheckBoxPreference) findPreference(DISABLE_BOOTANIMATION_PREF);
-             String disableBootanimation = SystemProperties.get(DISABLE_BOOTANIMATION_PERSIST_PROP, DISABLE_BOOTANIMATION_DEFAULT);
+        disableBootanimation = SystemProperties.get(DISABLE_BOOTANIMATION_PERSIST_PROP, DISABLE_BOOTANIMATION_DEFAULT);
         mDisableBootanimPref.setChecked("1".equals(disableBootanimation));
     }
 
@@ -114,8 +176,18 @@ public class PerformanceSettings extends SettingsPreferenceFragment implements
         mMinFrequencyPref.setValue(temp);
         mMinFrequencyPref.setSummary(String.format(mMinFrequencyFormat, toMHz(temp)));
 
-        temp = readOneLine(GOVERNOR);
+        temp = readOneLine(GOV_FILE);
         mGovernorPref.setSummary(String.format(mGovernorFormat, temp));
+    }
+
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        mCurCPUThread.interrupt();
+        try {
+            mCurCPUThread.join();
+        } catch (InterruptedException e) {
+        }
     }
 
     public boolean onPreferenceChange(Preference preference, Object newValue) {
@@ -123,7 +195,7 @@ public class PerformanceSettings extends SettingsPreferenceFragment implements
 
         if (newValue != null) {
             if (preference == mGovernorPref) {
-                fname = GOVERNOR;
+                fname = GOV_FILE;
             } else if (preference == mMinFrequencyPref) {
                 fname = FREQ_MIN_FILE;
             } else if (preference == mMaxFrequencyPref) {
@@ -160,6 +232,10 @@ public class PerformanceSettings extends SettingsPreferenceFragment implements
                     
             return super.onPreferenceTreeClick(preferenceScreen, preference);
         }
+
+    public static boolean fileExists(String fname) {
+        return new File(fname).exists();
+    }
 
     public static String readOneLine(String fname) {
         BufferedReader br;

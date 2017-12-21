@@ -4418,6 +4418,7 @@
     <string name="cpu_settings_title">CPU Settings</string>
     <string name="cpu_title">CPU Settings</string>
     <string name="cpu_summary">Governor and clock settings</string>
+    <string name="cpu_cur_freq_title">Current CPU frequency</string>
     <string name="cpu_governors_title">Available governors</string>
     <string name="cpu_governors_summary">List of available governors\nCurrently selected: %S</string>
     <string name="cpu_min_freq_title">Min CPU frequency</string>

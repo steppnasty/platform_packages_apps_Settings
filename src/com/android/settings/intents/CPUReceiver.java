@@ -58,7 +58,7 @@ public class CPUReceiver extends BroadcastReceiver {
         String minFrequency = prefs.getString(PerformanceSettings.MIN_FREQ_PREFERENCE, null);
         String maxFrequency = prefs.getString(PerformanceSettings.MAX_FREQ_PREFERENCE, null);
         String availableFrequenciesLine = PerformanceSettings.readOneLine(PerformanceSettings.FREQ_LIST_FILE);
-        String availableGovernorsLine = PerformanceSettings.readOneLine(PerformanceSettings.GOVERNORS_LIST_FILE);
+        String availableGovernorsLine = PerformanceSettings.readOneLine(PerformanceSettings.GOV_LIST_FILE);
         boolean noSettings = ((availableGovernorsLine == null) || (governor == null)) && 
                              ((availableFrequenciesLine == null) || ((minFrequency == null) && (maxFrequency == null)));
         List<String> frequencies = null;
@@ -74,7 +74,7 @@ public class CPUReceiver extends BroadcastReceiver {
                 frequencies = Arrays.asList(availableFrequenciesLine.split(" "));  
             }
             if (governor != null && governors != null && governors.contains(governor)) {
-                PerformanceSettings.writeOneLine(PerformanceSettings.GOVERNOR, governor);
+                PerformanceSettings.writeOneLine(PerformanceSettings.GOV_FILE, governor);
             }
             if (maxFrequency != null && frequencies != null && frequencies.contains(maxFrequency)) {
                 PerformanceSettings.writeOneLine(PerformanceSettings.FREQ_MAX_FILE, maxFrequency);

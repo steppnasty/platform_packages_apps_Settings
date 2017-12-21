@@ -3,6 +3,12 @@
     <PreferenceCategory android:title="@string/cpu_settings_title"
         android:key="cpu">
 
+    <Preference
+            android:key="cur_freq_preference"
+            style="?android:preferenceInformationStyle"
+            android:title="@string/cpu_cur_freq_title"
+            android:selectable="false" />
+
     <ListPreference
             android:key="min_freq_preference"
             android:dialogTitle="@string/cpu_min_freq_title"
