@@ -1831,7 +1831,10 @@
     <string name="cell_broadcast_settings" msgid="8415582011920085222">"Seluitsendings"</string>
     <string name="cell_broadcast_settings_summary" msgid="3301339398950905913">"Kies die tipe noodwaarskuwings wat vertoon moet word."</string>
 
-    <!-- aospSX additions -->
+    <!-- **** aospSX additions **** -->
+    <string name="aospsx_pref_title">ASX opsies</string>
+    <string name="trackball_wake_toggle_title">Trackball-knoppie wakker</string>
+    <string name="trackball_wake_toggle_summary">Laat trackball toe om die toestel wakker te maak</string>
     <string name="themes_settings_title">Temas</string>
     <string name="adb_over_network">ADB oor netwerk</string>
     <string name="adb_over_network_summary">Aktiveer TCP/IP-ontfouting oor die netwerk koppelvlakke (Wi-Fi, USB netwerke). Hierdie instelling word teruggestel tydens herlaai</string>
@@ -1848,11 +1851,23 @@
     <string name="cpu_settings_title">SVE Instellings</string>
     <string name="cpu_title">SVE Instellings</string>
     <string name="cpu_summary">Goewerneur en klok instellings</string>
+    <string name="cpu_cur_freq_title">Huidige SVE-frekwensie</string>
     <string name="cpu_governors_title">Beskikbaar goewerneur</string>
     <string name="cpu_governors_summary">Lys van beskikbare goewerneur\nTans gekies: %S</string>
     <string name="cpu_min_freq_title">Minimum SVE-frekwensie</string>
+    <string name="cpu_min_freq_summary">Minimum SVE-frekwensie\nTans: %s</string>
     <string name="cpu_max_freq_title">Maksimum SVE-frekwensie</string>
+    <string name="cpu_max_freq_summary">Maksimum SVE-frekwensie\nTans: %s</string>
     <string name="cpu_set_on_boot">Ingestel na herlaai</string>
     <string name="cpu_set_on_boot_summary">Herstel die verwerker instellings nadat die toestel herlaai is</string>
     <string name="system_settings_title">Stelsel</string>
+    <string name="pref_disable_bootanimation_title">Skakel opstart-animasie uit</string>
+    <string name="pref_disable_bootanimation_summary">Skakel die opstart-animasie uit vir vinniger opstarttyd</string>
+    <string name="root_access">\'Root\' toegang</string>
+    <string name="root_access_warning_title">Laat \'root\' toegang toe</string>
+    <string name="root_access_warning_message">Die toelaat van programme om \'root\' toegang aan te vra kan die sekuriteit van jou stelsel in gevaar stel!</string>
+    <string name="root_access_none">Gedeaktiveer</string>
+    <string name="root_access_apps">Slegs programme</string>
+    <string name="root_access_adb">Slegs ADB</string>
+    <string name="root_access_all">Programme en ADB</string>
 </resources>
